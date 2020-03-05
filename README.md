@@ -1,28 +1,17 @@
 # Crytography practice \[Work in progress\]
 
-## File system
-
-Use `ls -R` to check the file system.
-
-- `src/` should include source code of the library.
-- `scripts/` includes scripts used to do repetitive work.
-- `tests/` includes test files. They are not compiled when compiling the library.
-
-## Code standard
-
-- Abiding by
-  [Google C++ Styleguide](https://google.github.io/styleguide/cppguide.html)
-  is encouraged.
-
-## Version
-
-Example files created on 2019-10-23.
+Implement the wheels!
 
 ## Features
 
-- [x] 首次提交，文件夹中包含了一些无关的，仅作为代码格式演示的示例。
-      Completed on 2020-02-26.
+- [x] 清理了之前的演示代码，开始开发。
+这一栏暂定放已经开始开发的功能，完成后打勾并记录日期。
+Completed on 2020-03-06.
+- [ ] 定长大整数支持。zw
+- [ ] 文本比对。cyl
 
 ## TODO
 
-- [ ] 商议一下打算做什么。这个 README 和 issue 用中英文我觉得都可以。
+- [x] 商议一下打算做什么。这个 README 和 issue 用中英文我觉得都可以。
+这里主要放修bug之类的事项。当然也非常建议在源文件里写TODO和FIXME，
+便于自己后面翻出来的时候记得。
