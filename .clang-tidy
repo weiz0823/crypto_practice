@@ -1,0 +1,9 @@
+# Change to .yaml for filetype identification
+---
+Checks: "bugprone-*,clang-analyzer-*,clang-diagnostic-*,google-*,misc-*,\
+         modernize-*,performance-*,portability-*,readability-,\
+         -google-readability-braces-around-statements,\
+         -clang-diagnostic-#warningsi,\
+         -clang-diagnostic-#pragma-messages"
+FormatStyle: file
+...
