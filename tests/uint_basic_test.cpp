@@ -6,7 +6,7 @@
 #ifdef __cpp_impl_three_way_comparison
 #pragma message("feature: three-way comparison ok")
 #endif
-#if __cplusplus > 201703L // c++2a=201707L
+#if __cplusplus > 201703L  // c++2a=201707L
 #pragma message("std version > c++17: ok")
 #endif
 
@@ -26,11 +26,15 @@ int PutError(const std::string& str) {
 }
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
+    // get random ready
+    std::random_device rand_dev_;
+    auto rand_gen_ = static_cast<std::mt19937>(rand_dev_());
+    std::uniform_int_distribution<unsigned> rand_;
     PutInfo("What are the outputs: Each test/section ENDS with an OK.");
     PutInfo("BigUInt tests begin...");
-    cryp::int128_t a;
+    cryp::uint128_t a;
     PutOK("default construct cryp::uint128_t, a=0");
-    cryp::int128_t b(10);
+    cryp::uint128_t b(10u);
     PutOK("construct by int literal, b=10");
     std::printf("a in hex is ");
     a.PrintHexU();
@@ -43,7 +47,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::printf("\n10<<63 in hex is ");
     (b <<= 31).PrintHexU();
     std::puts("");
-    b = cryp::int128_t(10);
+    b = cryp::uint128_t(10u);
     PutOK("assigned b=10. Move assignment. Could be checked by gdb.");
     // b = cryp::int1024_t(10);
     // PutError("previous line should cause error -- length not match.");
@@ -54,6 +58,40 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::puts("");
     b = b;
     PutOK("assigned b=b. Copy assignment self-assignment check.");
-    PutOK("Part 1 -- basic construct");
+    PutInfo("Jumping to multiplication...");
+    a.GenRandom(2);
+    a.PrintHexU();
+    std::printf(" * ");
+    b.GenRandom(2);
+    b.PrintHexU();
+    std::printf(" gets ");
+    a.MulEq_Plain(b);
+    a.PrintHexU();
+    std::printf("\n");
+    PutOK("Plain mul tests finished. Verify through wolframalpha.com");
+
+    unsigned r;
+    unsigned c = rand_(rand_gen_);
+    cryp::uint128_t temp = a;
+    a.PrintHexU();
+    std::printf(" / %#x gets quotient = ", c);
+    a.DivEq_Basic(c, &r);
+    a.PrintHexU();
+    std::printf(", remainder = %#x\n", r);
+
+    std::printf("In decimal: ");
+    temp.Print();
+    std::printf(" / %u gets quotient = ", c);
+    a.Print();
+    std::printf(", remainder = %u\n", r);
+
+    a.Print(16);
+    std::printf(" == ");
+    a.Print(10);
+    std::printf("\n");
+    cryp::uint256_t t1;
+    cryp::uint512_t t2;
+    // explicit type conversion
+    t2 = static_cast<decltype(t2)>(t1);
     return 0;
 }

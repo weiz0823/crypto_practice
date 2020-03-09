@@ -28,7 +28,8 @@ WARNINGFLAGS=-Og -g -Wall -Weffc++ -pedantic \
 			 -Wvariadic-macros \
 			 -Wwrite-strings \
 			 -Wtautological-compare \
-			 -Wno-unused-result
+			 -Wno-unused-result \
+			 -Wno-global-constructors -Wno-exit-time-destructors
 INSTRUMENTFLAGS=-fsanitize=address \
 				-fsanitize=leak -fsanitize=undefined \
 				-fsanitize-address-use-after-scope \
@@ -39,7 +40,8 @@ else
 
 STDVER=-std=c++2a
 WARNINGFLAGS=-O0 -g -Weverything -Wno-c++98-compat -Wno-missing-prototypes \
-			 -Wno-c++98-compat-pedantic -Wno-weak-template-vtables
+			 -Wno-c++98-compat-pedantic -Wno-weak-template-vtables \
+			 -Wno-global-constructors -Wno-exit-time-destructors
 INSTRUMENTFLAGS=-fsanitize=undefined  \
 				-fsanitize=address
 
@@ -67,7 +69,7 @@ endif
 
 all: $(RELEASE_TARGETS) $(DEBUG_TARGETS)
 
-compile/bigint.o: src/bigint.cpp src/bigint.hpp
+compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigmul_div_mod.cpp
 	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
 
 uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
