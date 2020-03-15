@@ -1,10 +1,10 @@
 # MODE: debug/benchmark/release
 MODE=debug
-CXX=clang++-9
+CXX=g++
 
 ifeq ($(CXX),g++)
 
-WARNINGFLAGS=-Og -g -Wall -Weffc++ -pedantic \
+WARNINGFLAGS=-Wall -Weffc++ -pedantic \
 			 -pedantic-errors -Wextra -Waggregate-return -Wcast-align \
 			 -Wcast-qual -Wconversion \
 			 -Wdisabled-optimization \
@@ -28,7 +28,7 @@ WARNINGFLAGS=-Og -g -Wall -Weffc++ -pedantic \
 			 -Wtautological-compare \
 			 -Wno-unused-result \
 			 -Wno-global-constructors -Wno-exit-time-destructors
-INSTRUMENTFLAGS=-fsanitize=address \
+INSTRUMENTFLAGS=-Og -g -fsanitize=address \
 				-fsanitize=leak -fsanitize=undefined \
 				-fsanitize-address-use-after-scope \
 				-fsanitize=float-divide-by-zero -fsanitize=bounds-strict \
@@ -36,11 +36,12 @@ INSTRUMENTFLAGS=-fsanitize=address \
 
 else
 
-STDVER=-std=c++2a
-WARNINGFLAGS=-O0 -g -Weverything -Wno-c++98-compat -Wno-missing-prototypes \
+# assume it's clang
+WARNINGFLAGS=-Weverything -Wno-c++98-compat -Wno-missing-prototypes \
 			 -Wno-c++98-compat-pedantic -Wno-weak-template-vtables \
-			 -Wno-global-constructors -Wno-exit-time-destructors
-INSTRUMENTFLAGS=-fsanitize=undefined  \
+			 -Wno-global-constructors -Wno-exit-time-destructors \
+			 -Wno-unused-command-line-argument
+INSTRUMENTFLAGS=-O0 -g -fsanitize=undefined  \
 				-fsanitize=address
 
 # -fsanitize=safe-stack
@@ -48,9 +49,9 @@ INSTRUMENTFLAGS=-fsanitize=undefined  \
 
 endif
 
-CXXFLAGS=-std=c++17 -Wno-unused-command-line-argument
+CXXFLAGS=-std=c++17
 TARGETS=
-RELEASE_TARGETS=
+RELEASE_TARGETS=base64
 DEBUG_TARGETS=uint_basic_test
 BENCHMARK_TARGETS=bigmul_benchmark
 
@@ -58,17 +59,17 @@ BENCHMARK_TARGETS=bigmul_benchmark
 ifeq ($(MODE),debug)
 
 TARGETS=$(RELEASE_TARGETS) $(BENCHMARK_TARGETS) $(DEBUG_TARGETS)
-CXXFLAGS=$(CXXFLAGS) $(WARNINGFLAGS) $(INSTRUMENTFLAGS) \
-		 -Wno-unused-command-line-argument
+CXXFLAGS+= $(WARNINGFLAGS) $(INSTRUMENTFLAGS)
+
 else ifeq ($(MODE), benchmark)
 
 TARGETS=$(RELEASE_TARGETS) $(BENCHMARK_TARGETS)
-CXXFLAGS=$(CXXFLAGS) -O2 -Wno-unused-command-line-argument
+CXXFLAGS+= -O2
 
 else
 
 TARGETS=$(RELEASE_TARGETS)
-CXXFLAGS=$(CXXFLAGS) -O2 -Wno-unused-command-line-argument
+CXXFLAGS+= -O2
 
 endif
 
@@ -76,6 +77,14 @@ all: $(TARGETS)
 
 compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigmul_div_mod.cpp
 	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
+
+compile/base64.o: src/base64.cpp src/base64.hpp
+	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
+
+base64: src/base64_app.cpp compile/base64.o
+	$(CXX) $(CXXFLAGS) -c src/base64_app.cpp -o compile/base64_app.o
+	$(CXX) $(CXXFLAGS) compile/base64_app.o compile/base64.o \
+		-o base64
 
 uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
 	$(CXX) $(CXXFLAGS) -c tests/uint_basic_test.cpp -o compile/uint_basic_test.o
@@ -92,4 +101,4 @@ clean:
 	-rm compile/*
 
 clean-all: clean
-	-rm $(TARGETS) $(TARGETS) $(TARGETS)
+	-rm $(TARGETS)

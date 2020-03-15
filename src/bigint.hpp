@@ -21,9 +21,9 @@ class BigUInt {
     // move constructor
     BigUInt(BigUInt&& rhs) noexcept;
     virtual ~BigUInt();
-    // copy assignment, with possible memory reuse
+    // copy assignment
     BigUInt& operator=(const BigUInt& rhs);
-    // move assignment
+    // move assignment, with possible memory reuse
     BigUInt& operator=(BigUInt&& rhs) noexcept;
     // copy/move operator, when memory reuse is not possible
     // [[deprecated]] BigUInt& operator=(BigUInt rhs) noexcept;

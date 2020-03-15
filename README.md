@@ -9,6 +9,8 @@ Implement the wheels!
 Completed on 2020-03-06.
 - [x] 定长大整数支持。至取模运算。
 Completed on 2020-03-15.
+- [x] Base 64 binary-to-text encoding. `make base64 MODE=release`.
+Completed on 2020-03-16.
 - [ ] 密码学必要的大整数扩展运算。如gcd，lcm。
 - [ ] 文本比对。cyl
 
@@ -17,5 +19,5 @@ Completed on 2020-03-15.
 - [x] 商议一下打算做什么。这个 README 和 issue 用中英文我觉得都可以。
 这里主要放修bug之类的事项。当然也非常建议在源文件里写TODO和FIXME，
 便于自己后面翻出来的时候记得。
-- [x] 定长大整数：基础部分测试。至乘和除。见`tests/uint_basic_test.cpp`。
-- [x] 定长大整数：乘除速度评估。见`tests/bigmul_benchmark.cpp`。
+- [x] 定长大整数：基础部分测试。至乘和除。`make uint_basic_test`。
+- [x] 定长大整数：乘除速度评估。`make bigmul_benchmark MODE=benchmark`。
