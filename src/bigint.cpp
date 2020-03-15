@@ -3,26 +3,18 @@
 namespace cryp {
 
 template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const unsigned val) {
-    val_ = new unsigned[LEN];
-    // use std::fill instead of std::memset, it's not necessarily slower
-    std::fill(val_, val_ + LEN, 0);
-    val_[0] = val;
-}
-
-template <unsigned LEN>
 BigUInt<LEN>::BigUInt(const uint64_t val) {
     val_ = new unsigned[LEN];
     // use std::fill instead of std::memset
     std::fill(val_, val_ + LEN, 0);
     // google-readability-casting told me to do that
     val_[0] = static_cast<unsigned>(val);
-    val_[1] = static_cast<unsigned>(val >> 32);
+    if (LEN > 1) val_[1] = static_cast<unsigned>(val >> 32);
 }
 
 // FIXME(): input may be slow
 template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const char* str, unsigned base) : BigUInt(0u) {
+BigUInt<LEN>::BigUInt(const char* str, unsigned base) : BigUInt() {
     if (base <= 1 || base > 32) base = 0;
     int i = 0;
     if (base == 0) {
@@ -86,6 +78,13 @@ template <unsigned LEN>
 BigUInt<LEN>::BigUInt(BigUInt<LEN>&& rhs) noexcept {
     val_ = rhs.val_;
     rhs.val_ = nullptr;
+}
+
+// construct from raw data, protected
+
+template <unsigned LEN>
+BigUInt<LEN>::BigUInt(const unsigned* val, int len) : BigUInt() {
+    std::copy(val, val + len, val_);
 }
 
 template <unsigned LEN>
@@ -173,18 +172,10 @@ BigUInt<LEN> operator+(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
 template <unsigned LEN>
 BigUInt<LEN>& BigUInt<LEN>::operator-=(const BigUInt<LEN>& rhs) {
     // alternative: a-b=~(~a+b)
-    // ToBitRev();
-    // *this += rhs;
-    // ToBitRev();
-    unsigned overflow_flag = 0;
-    for (unsigned i = 0; i < LEN; ++i) {
-        val_[i] -= overflow_flag;
-        val_[i] -= rhs.val_[i];
-        if (val_[i] > rhs.val_[i] || (overflow_flag && val_[i] >= rhs.val_[i]))
-            overflow_flag = 1;
-        else
-            overflow_flag = 0;
-    }
+    ToBitRev();
+    *this += rhs;
+    ToBitRev();
+    // or direct calculation also ok
     return *this;
 }
 
@@ -282,21 +273,23 @@ BigUInt<LEN> operator^(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
 template <unsigned LEN>
 BigUInt<LEN>& BigUInt<LEN>::operator<<=(int shift) {
     if (shift < 0) return *this >>= -shift;
-    shift &= (LEN << 5) - 1;
+    if (shift >= int(LEN) * 32) {
+        std::fill(val_, val_ + LEN, 0);
+        return *this;
+    }
     // shift = q*32 + r
     int q = shift >> 5, r = shift & 31;
-    unsigned mask1 = unsigned(-1), mask2 = 0;
     if (r) {
-        mask1 = (1 << (32 - r)) - 1;
-        mask2 = unsigned(-1) - mask1;
-        for (int i = LEN - 1; i > q; --i) {
+        unsigned mask1 = unsigned(1 << (32 - r)) - 1;
+        unsigned mask2 = unsigned(-1) - mask1;
+        for (int i = int(LEN) - 1; i > q; --i) {
             val_[i] = ((val_[i - q] & mask1) << r) +
                       ((val_[i - q - 1] & mask2) >> (32 - r));
         }
+        val_[q] = (val_[0] & mask1) << r;
     } else {
-        for (int i = LEN - 1; i > q; --i) val_[i] = val_[i - q];
+        for (int i = int(LEN) - 1; i >= q; --i) val_[i] = val_[i - q];
     }
-    val_[q] = (val_[0] & mask1) << r;
     // use std::fill instead of std::memset
     if (q) std::fill(val_, val_ + q, 0);
     return *this;
@@ -310,17 +303,24 @@ BigUInt<LEN> operator<<(BigUInt<LEN> lhs, int shift) {
 template <unsigned LEN>
 BigUInt<LEN>& BigUInt<LEN>::operator>>=(int shift) {
     if (shift < 0) return *this <<= -shift;
-    shift &= (LEN << 5) - 1;
+    if (shift >= int(LEN) * 32) {
+        std::fill(val_, val_ + LEN, 0);
+        return *this;
+    }
     // shift = q*32 + r
     auto q = static_cast<unsigned>(shift >> 5),
          r = static_cast<unsigned>(shift & 31);
-    unsigned mask2 = (1 << r) - 1;
-    unsigned mask1 = unsigned(-1) - mask2;
-    for (unsigned i = 0; i < LEN - q - 1; ++i) {
-        val_[i] = ((val_[i + q] & mask1) >> r) +
-                  ((val_[i + q + 1] & mask2) << (32 - r));
+    if (r) {
+        unsigned mask2 = unsigned(1 << r) - 1;
+        unsigned mask1 = unsigned(-1) - mask2;
+        for (unsigned i = 0; i < LEN - q - 1; ++i) {
+            val_[i] = ((val_[i + q] & mask1) >> r) +
+                      ((val_[i + q + 1] & mask2) << (32 - r));
+        }
+        val_[LEN - q - 1] = (val_[LEN - 1] & mask1) >> r;
+    } else {
+        for (unsigned i = 0; i <= LEN - q - 1; ++i) val_[i] = val_[i + q];
     }
-    val_[LEN - q - 1] = (val_[LEN - 1] & mask1) << r;
     // use std::fill instead of std::memset
     if (q) std::fill(val_ + LEN - q, val_ + LEN, 0);
     return *this;
@@ -384,9 +384,9 @@ template <unsigned LEN>
 template <unsigned _LEN>
 int BigUInt<LEN>::Compare(const BigUInt<_LEN>& rhs) const {
     if (LEN > _LEN) {
-        for (int i = LEN - 1; i >= _LEN; --i)
+        for (unsigned i = LEN - 1; i >= _LEN; --i)
             if (val_[i] > 0) return 1;
-        for (int i = _LEN - 1; i >= 0; --i)
+        for (int i = int(_LEN) - 1; i >= 0; --i)
             if (val_[i] != rhs.val_[i]) {
                 if (val_[i] < rhs.val_[i])
                     return -1;
@@ -394,9 +394,9 @@ int BigUInt<LEN>::Compare(const BigUInt<_LEN>& rhs) const {
                     return 1;
             }
     } else {
-        for (int i = _LEN - 1; i >= LEN; --i)
+        for (unsigned i = _LEN - 1; i >= LEN; --i)
             if (rhs.val_[i] > 0) return -1;
-        for (int i = LEN - 1; i >= 0; --i)
+        for (int i = int(LEN) - 1; i >= 0; --i)
             if (val_[i] != rhs.val_[i]) {
                 if (val_[i] < rhs.val_[i])
                     return -1;
@@ -435,6 +435,7 @@ bool operator!=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
 template <unsigned LEN>
 void BigUInt<LEN>::GenRandom(unsigned len) {
     for (unsigned i = 0; i < len; ++i) val_[i] = rand_(rand_gen_);
+    if (len < LEN) std::fill(val_ + len, val_ + LEN, 0);
 }
 
 template <unsigned LEN>
@@ -484,6 +485,9 @@ unsigned BigUInt<LEN>::Mod_Basic(unsigned rhs) const {
     return r;
 }
 // explicit instantiation
+template class BigUInt<0u>;
+template class BigUInt<1u>;
+template class BigUInt<2u>;
 template class BigUInt<4>;
 template class BigUInt<8>;
 template class BigUInt<16>;

@@ -12,8 +12,7 @@ template <unsigned LEN>
 class BigUInt {
    public:
     // NO implicit type conversion allowed
-    explicit BigUInt(const unsigned val = 0);
-    explicit BigUInt(const uint64_t val);
+    explicit BigUInt(const uint64_t val = 0);
     explicit BigUInt(const char* str, unsigned base = 0);
     explicit BigUInt(const std::string& str, unsigned base = 0)
         : BigUInt(str.c_str(), base) {}
@@ -66,10 +65,15 @@ class BigUInt {
 #endif
     // bigmul_div_mod.cpp
     BigUInt& operator*=(unsigned rhs);
+    BigUInt& operator*=(const BigUInt& rhs);
     BigUInt& MulEq_Plain(const BigUInt& rhs);
+    [[maybe_unused]] BigUInt& MulEq_Karatsuba(const BigUInt& rhs);
     // r is to store the remainder
-    BigUInt& DivEq_Basic(unsigned rhs, unsigned* r_ = nullptr);
     BigUInt& operator/=(unsigned rhs);
+    BigUInt& operator/=(const BigUInt& rhs);
+    BigUInt& operator%=(const BigUInt& rhs);
+    BigUInt& DivEq_Basic(unsigned rhs, unsigned* r_ = nullptr);
+    BigUInt& DivEq_Plain(const BigUInt& rhs, BigUInt* r_ = nullptr);
     unsigned Mod10() const;
     void GenRandom(unsigned len = LEN);
     // arbitrary base (2--32) I/O
@@ -86,8 +90,13 @@ class BigUInt {
     inline static std::uniform_int_distribution<unsigned> rand_;
     unsigned* val_;
 
+    // construct from raw data is not public
+    explicit BigUInt(const unsigned* val, int len = LEN);
+    [[maybe_unused]] BigUInt& MulEq_Karatsuba_Recursion(const BigUInt& rhs);
+
     template <unsigned>
     friend class BigUInt;
+    struct Instanization;
 };
 
 // Google: prefer to define non-modifying binary operators as non-member func
@@ -124,7 +133,12 @@ template <unsigned LEN>
 BigUInt<LEN> operator*(BigUInt<LEN> lhs, unsigned rhs);
 template <unsigned LEN>
 BigUInt<LEN> operator/(BigUInt<LEN> lhs, unsigned rhs);
-// TODO(): big/big (and also take the remainder)
+template <unsigned LEN>
+BigUInt<LEN> operator*(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
+template <unsigned LEN>
+BigUInt<LEN> operator/(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
+template <unsigned LEN>
+BigUInt<LEN> operator%(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
 
 // note: using is more modern than typedef
 using uint128_t = BigUInt<4u>;
@@ -136,6 +150,9 @@ using uint4096_t = BigUInt<128u>;
 using uint8192_t = BigUInt<256u>;
 
 // explicit instantiation
+extern template class BigUInt<0u>;
+extern template class BigUInt<1u>;
+extern template class BigUInt<2u>;
 extern template class BigUInt<4u>;
 extern template class BigUInt<8u>;
 extern template class BigUInt<16u>;
@@ -156,5 +173,145 @@ extern template BigUInt<64u>::operator BigUInt<32u>() const;
 extern template BigUInt<32u>::operator BigUInt<16u>() const;
 extern template BigUInt<16u>::operator BigUInt<8u>() const;
 extern template BigUInt<8u>::operator BigUInt<4u>() const;
+
+template <unsigned LEN>
+struct BigUInt<LEN>::Instanization {
+    BigUInt<4u>* a4;
+    BigUInt<8u>* a8;
+    BigUInt<16u>* a16;
+    BigUInt<32u>* a32;
+    BigUInt<64u>* a64;
+    BigUInt<128u>* a128;
+    BigUInt<256u>* a256;
+    Instanization() {
+        *a4 + *a4;
+        *a4 - *a4;
+        *a4*(*a4);
+        *a4 / *a4;
+        // *a4 % *a4;
+        *a4&* a4;
+        *a4 | *a4;
+        *a4 ^ *a4;
+        *a4 * 1;
+        *a4 / 1;
+        *a4 << 1;
+        *a4 >> 1;
+        bool res;
+        res = *a4 < *a4;
+        res = *a4 > *a4;
+        res = *a4 <= *a4;
+        res = *a4 >= *a4;
+        res = *a4 == *a4;
+        res = *a4 != *a4;
+        *a8 + *a8;
+        *a8 - *a8;
+        *a8*(*a8);
+        *a8 / *a8;
+        // *a8 % *a8;
+        *a8&* a8;
+        *a8 | *a8;
+        *a8 ^ *a8;
+        *a8 * 1;
+        *a8 / 1;
+        *a8 << 1;
+        *a8 >> 1;
+        res = *a8 < *a8;
+        res = *a8 > *a8;
+        res = *a8 <= *a8;
+        res = *a8 >= *a8;
+        res = *a8 == *a8;
+        res = *a8 != *a8;
+        *a16 + *a16;
+        *a16 - *a16;
+        *a16*(*a16);
+        *a16 / *a16;
+        // *a16 % *a16;
+        *a16&* a16;
+        *a16 | *a16;
+        *a16 ^ *a16;
+        *a16 * 1;
+        *a16 / 1;
+        *a16 << 1;
+        *a16 >> 1;
+        res = *a16 < *a16;
+        res = *a16 > *a16;
+        res = *a16 <= *a16;
+        res = *a16 >= *a16;
+        res = *a16 == *a16;
+        res = *a16 != *a16;
+        *a32 + *a32;
+        *a32 - *a32;
+        *a32*(*a32);
+        *a32 / *a32;
+        // *a32 % *a32;
+        *a32&* a32;
+        *a32 | *a32;
+        *a32 ^ *a32;
+        *a32 * 1;
+        *a32 / 1;
+        *a32 << 1;
+        *a32 >> 1;
+        res = *a32 < *a32;
+        res = *a32 > *a32;
+        res = *a32 <= *a32;
+        res = *a32 >= *a32;
+        res = *a32 == *a32;
+        res = *a32 != *a32;
+        *a64 + *a64;
+        *a64 - *a64;
+        *a64*(*a64);
+        *a64 / *a64;
+        // *a64 % *a64;
+        *a64&* a64;
+        *a64 | *a64;
+        *a64 ^ *a64;
+        *a64 * 1;
+        *a64 / 1;
+        *a64 << 1;
+        *a64 >> 1;
+        res = *a64 < *a64;
+        res = *a64 > *a64;
+        res = *a64 <= *a64;
+        res = *a64 >= *a64;
+        res = *a64 == *a64;
+        res = *a64 != *a64;
+        *a128 + *a128;
+        *a128 - *a128;
+        *a128*(*a128);
+        *a128 / *a128;
+        // *a128 % *a128;
+        *a128&* a128;
+        *a128 | *a128;
+        *a128 ^ *a128;
+        *a128 * 1;
+        *a128 / 1;
+        *a128 << 1;
+        *a128 >> 1;
+        res = *a128 < *a128;
+        res = *a128 > *a128;
+        res = *a128 <= *a128;
+        res = *a128 >= *a128;
+        res = *a128 == *a128;
+        res = *a128 != *a128;
+        *a256 + *a256;
+        *a256 - *a256;
+        *a256*(*a256);
+        *a256 / *a256;
+        // *a256 % *a256;
+        *a256&* a256;
+        *a256 | *a256;
+        *a256 ^ *a256;
+        *a256 * 1;
+        *a256 / 1;
+        *a256 << 1;
+        *a256 >> 1;
+        res = *a256 < *a256;
+        res = *a256 > *a256;
+        res = *a256 <= *a256;
+        res = *a256 >= *a256;
+        res = *a256 == *a256;
+        res = *a256 != *a256;
+    }
+};
 }  // namespace cryp
 #endif /* ifndef BIGINT_HPP */

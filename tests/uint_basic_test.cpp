@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iostream>
 #include <string>
 #include "../src/bigint.hpp"
@@ -58,8 +59,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::puts("");
     b = b;
     PutOK("assigned b=b. Copy assignment self-assignment check.");
+
     PutInfo("Jumping to multiplication...");
     a.GenRandom(2);
+    // assert for bit shift
+    // for (int i = 0; i < 32; ++i) assert(((a << i) >> i) == a);
     a.PrintHexU();
     std::printf(" * ");
     b.GenRandom(2);
@@ -70,6 +74,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::printf("\n");
     PutOK("Plain mul tests finished. Verify through wolframalpha.com");
 
+    PutInfo("Testing division big/int...");
     unsigned r;
     unsigned c = rand_(rand_gen_);
     cryp::uint128_t temp = a;
@@ -93,5 +98,35 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     cryp::uint512_t t2;
     // explicit type conversion
     t2 = static_cast<decltype(t2)>(t1);
+
+    cryp::uint128_t rr;
+    PutInfo("Testing division big/big (len: 4/2)...");
+    a.GenRandom(4);
+    b.GenRandom(2);
+    a.PrintHexU();
+    std::printf(" / ");
+    b.PrintHexU();
+    std::printf(" gets quotient ");
+    a.DivEq_Plain(b, &rr);
+    a.PrintHexU();
+    std::printf(" and remainder ");
+    rr.PrintHexU();
+    std::puts("");
+    PutOK("Plain div tests finished. Verify through wolframalpha.com");
+
+    cryp::uint512_t a5, b5, r5;
+    PutInfo("Testing division big/big (len: 16/6)...");
+    a5.GenRandom(16);
+    b5.GenRandom(6);
+    a5.Print(16);
+    std::printf(" - ");
+    b5.Print(16);
+    std::printf(" * ");
+    a5.DivEq_Plain(b5, &r5);
+    a5.Print(16);
+    std::printf(" - ");
+    r5.Print(16);
+    std::puts(" should be 0");
+    PutOK("Plain div tests finished. Verify on python");
     return 0;
 }

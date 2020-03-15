@@ -1,11 +1,9 @@
-# Just an empty makefile now.
-# Remember to use TAB to indent.
+# MODE: debug/benchmark/release
 MODE=debug
 CXX=clang++-9
 
 ifeq ($(CXX),g++)
 
-STDVER=-std=c++17
 WARNINGFLAGS=-Og -g -Wall -Weffc++ -pedantic \
 			 -pedantic-errors -Wextra -Waggregate-return -Wcast-align \
 			 -Wcast-qual -Wconversion \
@@ -50,24 +48,31 @@ INSTRUMENTFLAGS=-fsanitize=undefined  \
 
 endif
 
-CXXFLAGS=
+CXXFLAGS=-std=c++17 -Wno-unused-command-line-argument
+TARGETS=
 RELEASE_TARGETS=
 DEBUG_TARGETS=uint_basic_test
+BENCHMARK_TARGETS=bigmul_benchmark
 
 
 ifeq ($(MODE),debug)
 
-CXXFLAGS=$(STDVER) $(WARNINGFLAGS) $(INSTRUMENTFLAGS) \
+TARGETS=$(RELEASE_TARGETS) $(BENCHMARK_TARGETS) $(DEBUG_TARGETS)
+CXXFLAGS=$(CXXFLAGS) $(WARNINGFLAGS) $(INSTRUMENTFLAGS) \
 		 -Wno-unused-command-line-argument
+else ifeq ($(MODE), benchmark)
+
+TARGETS=$(RELEASE_TARGETS) $(BENCHMARK_TARGETS)
+CXXFLAGS=$(CXXFLAGS) -O2 -Wno-unused-command-line-argument
 
 else
 
-DEBUG_TARGETS=
-CXXFLAGS=$(STDVER) -O2 -Wno-unused-command-line-argument
+TARGETS=$(RELEASE_TARGETS)
+CXXFLAGS=$(CXXFLAGS) -O2 -Wno-unused-command-line-argument
 
 endif
 
-all: $(RELEASE_TARGETS) $(DEBUG_TARGETS)
+all: $(TARGETS)
 
 compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigmul_div_mod.cpp
 	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
@@ -77,9 +82,14 @@ uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
 	$(CXX) $(CXXFLAGS) compile/uint_basic_test.o compile/bigint.o \
 		-o uint_basic_test
 
+bigmul_benchmark: tests/bigmul_benchmark.cpp compile/bigint.o
+	$(CXX) $(CXXFLAGS) -c tests/bigmul_benchmark.cpp -o compile/bigmul_benchmark.o
+	$(CXX) $(CXXFLAGS) compile/bigmul_benchmark.o compile/bigint.o \
+		-o bigmul_benchmark
+
 .PHONY: all clean clean-all
 clean:
 	-rm compile/*
 
 clean-all: clean
-	-rm $(RELEASE_TARGETS) $(DEBUG_TARGETS)
+	-rm $(TARGETS) $(TARGETS) $(TARGETS)
