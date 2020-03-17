@@ -51,7 +51,7 @@ endif
 
 CXXFLAGS=-std=c++17
 TARGETS=
-RELEASE_TARGETS=base64
+RELEASE_TARGETS=base64 md5
 DEBUG_TARGETS=uint_basic_test
 BENCHMARK_TARGETS=bigmul_benchmark
 
@@ -85,6 +85,14 @@ base64: src/base64_app.cpp compile/base64.o
 	$(CXX) $(CXXFLAGS) -c src/base64_app.cpp -o compile/base64_app.o
 	$(CXX) $(CXXFLAGS) compile/base64_app.o compile/base64.o \
 		-o base64
+
+compile/md5.o: src/md5.cpp src/md5.hpp
+	$(CXX) $(CXXFLAGS) -c src/md5.cpp -o compile/md5.o
+
+md5: src/md5_app.cpp compile/md5.o
+	$(CXX) $(CXXFLAGS) -c src/md5_app.cpp -o compile/md5_app.o
+	$(CXX) $(CXXFLAGS) compile/md5_app.o compile/md5.o \
+		-o md5
 
 uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
 	$(CXX) $(CXXFLAGS) -c tests/uint_basic_test.cpp -o compile/uint_basic_test.o
