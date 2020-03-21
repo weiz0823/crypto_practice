@@ -9,7 +9,7 @@ uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
     uint32_t a, b, c, d;
     uint32_t f;
     uint32_t j;
-    size_t msg_len = 0, chunk_len = 0;
+    size_t msg_len = 0, chunk_len = 0, len_tmp = 0;
     uint8_t msg[64];
     bool flag = false;
     do {
@@ -21,7 +21,11 @@ uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
             else
                 msg[chunk_len] = 128;
             std::memset(msg + chunk_len + 1, 0, 55 - chunk_len);
-            std::memcpy(msg + 56, &msg_len, 8);
+            len_tmp = msg_len;
+            for (uint8_t i = 56; i < 64; ++i) {
+                msg[i] = len_tmp & 255;
+                len_tmp >>= 8;
+            }
         } else if (chunk_len < 64) {
             msg[chunk_len] = 128;
             std::memset(msg + chunk_len + 1, 0, 63 - chunk_len);
@@ -38,16 +42,13 @@ uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
                 j = i;
             } else if (i < 32) {
                 f = (d & b) | (~d & c);
-                j = 5 * i + 1;
-                // j = (i << 2) + i + 1;
+                j = uint32_t(i << 2) + i + 1;
             } else if (i < 48) {
                 f = b ^ c ^ d;
-                j = 3 * i + 5;
-                // j = i + i + i + 5;
+                j = i + i + i + 5;
             } else {
                 f = c ^ (b | ~d);
-                j = 7 * i;
-                // j = (i << 3) - i;
+                j = uint32_t(i << 3) - i;
             }
             j = (j & 15) << 2;
             f += a + msg[j] + uint32_t(msg[j + 1] << 8) +

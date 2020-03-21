@@ -18,7 +18,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
                 b >> 3);
     std::printf("MD5: ");
-    for (auto x : a) std::printf("%hhx", x);
+    for (auto x : a) std::printf("%02hhx", x);
     std::puts("");
     if (argc > 2) {
         uint8_t num = 0;
