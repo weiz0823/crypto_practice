@@ -10,6 +10,8 @@ Features
 -   \[x\] 定长大整数支持。至取模运算。 Completed on 2020-03-15.
 -   \[x\] Base 64 binary-to-text encoding. `make base64 MODE=release`. Completed on 2020-03-16.
 -   \[x\] MD5 message digest. `make md5 MODE=release`. Completed on 2020-03-17.
+-   \[x\] SHA-1 and SHA-2 secure hash algorithms family. `make sha1 sha2 MODE=release`. Completed on 2020-03-22.
+-   \[x\] `uint128_t` basic support, in case extended precision needed (e.g. SHA-512). Completed on 2020-03-22.
 -   \[ \] 密码学必要的大整数扩展运算。如gcd，lcm。
 -   \[ \] 文本比对。cyl
 
