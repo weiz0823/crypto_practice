@@ -10,9 +10,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::perror("File opening failed");
             return EXIT_FAILURE;
         }
-        b = MD5::Calculate(f, a);
+        b = cryp::MD5::Calculate(f, a);
     } else {
-        b = MD5::Calculate(stdin, a);
+        b = cryp::MD5::Calculate(stdin, a);
     }
 
     std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,

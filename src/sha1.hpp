@@ -3,6 +3,7 @@
 #include <array>
 #include <iostream>
 
+namespace cryp {
 // secure hash function SHA-1
 class SHA1 {
    private:
@@ -13,5 +14,6 @@ class SHA1 {
    public:
     static uint64_t Calculate(std::FILE* file, uint8_t* dest);
 };
+}  // namespace cryp
 
 #endif /* SHA1_HPP */

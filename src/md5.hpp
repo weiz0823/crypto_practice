@@ -3,6 +3,7 @@
 #include <array>
 #include <iostream>
 
+namespace cryp {
 // MD5 message-digest
 class MD5 {
    private:
@@ -27,5 +28,5 @@ class MD5 {
    public:
     static uint64_t Calculate(std::FILE* file, uint8_t* dest);
 };
-
+}  // namespace cryp
 #endif /* MD5_HPP */

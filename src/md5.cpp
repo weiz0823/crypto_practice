@@ -1,6 +1,7 @@
 #include "md5.hpp"
 #include <cstring>
 
+namespace cryp {
 uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
     uint32_t a0 = 0x67452301;
     uint32_t b0 = 0xefcdab89;
@@ -15,7 +16,7 @@ uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
     do {
         chunk_len = std::fread(msg, 1, 64, file);
         msg_len += chunk_len << 3;
-        if (chunk_len <= 56) {
+        if (chunk_len < 56) {
             if (flag)
                 msg[chunk_len] = 0;
             else
@@ -75,3 +76,4 @@ uint64_t MD5::Calculate(std::FILE* file, uint8_t* dest) {
     }
     return msg_len;
 }
+}  // namespace cryp
