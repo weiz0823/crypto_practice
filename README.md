@@ -12,6 +12,7 @@ Features
 -   \[x\] MD5 message digest. `make md5 MODE=release`. Completed on 2020-03-17.
 -   \[x\] SHA-1 and SHA-2 secure hash algorithms family. `make sha1 sha2 MODE=release`. Completed on 2020-03-22.
 -   \[x\] `uint128_t` basic support, in case extended precision needed (e.g. SHA-512). Completed on 2020-03-22.
+-   \[x\] SHA-3 secure hash algorithms family. `make sha3 MODE=release`. Completed on 2020-03-26.
 -   \[ \] 密码学必要的大整数扩展运算。如gcd，lcm。
 -   \[ \] 文本比对。cyl
 

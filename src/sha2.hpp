@@ -12,6 +12,11 @@ class SHA2 {
     static constexpr uint64_t RightRotate64(uint64_t x, uint64_t n) {
         return (x >> n) | (x << (64 - n));
     }
+    static uint64_t SHA224_256(std::FILE* file, uint8_t* dest, uint32_t* a0,
+                               uint32_t t);
+    static void SHA512Process(uint64_t* a0, uint8_t* Emsg);
+    static uint64_t SHA384_512(std::FILE* file, uint8_t* dest, uint64_t* a0,
+                               uint32_t t);
     static uint64_t SHA512t_IVGen(uint8_t* src, size_t len, uint64_t* dest);
 
    public:

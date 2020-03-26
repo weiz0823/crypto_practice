@@ -27,7 +27,7 @@ WARNINGFLAGS=-Wall -Weffc++ -pedantic \
 			 -Wwrite-strings \
 			 -Wtautological-compare \
 			 -Wno-unused-result \
-			 -Wno-global-constructors -Wno-exit-time-destructors
+			 -Wno-conversion
 INSTRUMENTFLAGS=-Og -g -fsanitize=address \
 				-fsanitize=leak -fsanitize=undefined \
 				-fsanitize-address-use-after-scope \
@@ -51,7 +51,7 @@ endif
 
 CXXFLAGS=-std=c++17
 TARGETS=
-RELEASE_TARGETS=base64 md5 sha1 sha2
+RELEASE_TARGETS=base64 md5 sha1 sha2 sha3
 DEBUG_TARGETS=uint_basic_test
 BENCHMARK_TARGETS=bigmul_benchmark
 
@@ -109,6 +109,14 @@ sha2: src/sha2_app.cpp compile/sha2.o
 	$(CXX) $(CXXFLAGS) -c src/sha2_app.cpp -o compile/sha2_app.o
 	$(CXX) $(CXXFLAGS) compile/sha2_app.o compile/sha2.o \
 		-o sha2
+
+compile/sha3.o: src/sha3.cpp src/sha3.hpp src/uint128.hpp
+	$(CXX) $(CXXFLAGS) -c src/sha3.cpp -o compile/sha3.o
+
+sha3: src/sha3_app.cpp compile/sha3.o
+	$(CXX) $(CXXFLAGS) -c src/sha3_app.cpp -o compile/sha3_app.o
+	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o \
+		-o sha3
 
 uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
 	$(CXX) $(CXXFLAGS) -c tests/uint_basic_test.cpp -o compile/uint_basic_test.o
