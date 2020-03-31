@@ -75,9 +75,6 @@ endif
 
 all: $(TARGETS)
 
-compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigmul_div_mod.cpp
-	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
-
 compile/base64.o: src/base64.cpp src/base64.hpp
 	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
 
@@ -118,15 +115,10 @@ sha3: src/sha3_app.cpp compile/sha3.o
 	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o \
 		-o sha3
 
-uint_basic_test: tests/uint_basic_test.cpp compile/bigint.o
-	$(CXX) $(CXXFLAGS) -c tests/uint_basic_test.cpp -o compile/uint_basic_test.o
-	$(CXX) $(CXXFLAGS) compile/uint_basic_test.o compile/bigint.o \
-		-o uint_basic_test
-
-bigmul_benchmark: tests/bigmul_benchmark.cpp compile/bigint.o
-	$(CXX) $(CXXFLAGS) -c tests/bigmul_benchmark.cpp -o compile/bigmul_benchmark.o
-	$(CXX) $(CXXFLAGS) compile/bigmul_benchmark.o compile/bigint.o \
-		-o bigmul_benchmark
+compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigint_bit_arith.cpp \
+	src/bigint_io.cpp src/bigint_addsub.cpp src/bigint_mul.cpp \
+	src/bigint_divmod.cpp src/bigint_ext.cpp
+	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
 
 .PHONY: all clean clean-all
 clean:

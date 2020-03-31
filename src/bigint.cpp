@@ -1,510 +1,573 @@
 #include "bigint.hpp"
-#include "bigmul_div_mod.cpp"
-namespace cryp {
 
-template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const uint64_t val) {
-    val_ = new unsigned[LEN];
-    // use std::fill instead of std::memset
-    std::fill(val_, val_ + LEN, 0);
-    // google-readability-casting told me to do that
-    val_[0] = static_cast<unsigned>(val);
-    if (LEN > 1) val_[1] = static_cast<unsigned>(val >> 32);
-}
-
-// FIXME(): input may be slow
-template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const char* str, unsigned base) : BigUInt() {
-    if (base <= 1 || base > 32) base = 0;
-    int i = 0;
-    if (base == 0) {
-        if (str[0] == '0' && str[1] == 'b') {
-            base = 2;
-            i = 2;
-        } else if (str[0] == '0' && str[1] == 'x') {
-            base = 16;
-            i = 2;
-        } else {
-            base = 10;
-        }
-    }
-    if (base == 10) {
-        for (; str[i] >= '0' && str[i] <= '9'; ++i) {
-            *this <<= 1;
-            *this += (*this << 2) +
-                     BigUInt<LEN>(static_cast<unsigned>(str[i] - '0'));
-        }
-    } else if (base == 16) {
-        for (; std::isdigit(str[i]) || ('a' <= str[i] && str[i] <= 'f'); ++i) {
-            *this <<= 4;
-            if (str[i] >= 'a')
-                *this += BigUInt<LEN>(static_cast<unsigned>(str[i] - 'a' + 10));
-            else
-                *this += BigUInt<LEN>(static_cast<unsigned>(str[i] - '0'));
-        }
-    } else if (base == 2) {
-        for (; str[i] == '0' || str[i] == '1'; ++i) {
-            *this <<= 1;
-            if (str[i] == '1') ++*this;
-        }
-    } else if (base < 10) {
-        for (; str[i] >= '0' && str[i] < char('0' + base); ++i) {
-            (*this) *= base;
-            *this += BigUInt<LEN>(static_cast<unsigned>(str[i] - '0'));
-        }
+#include "bigint_addsub.cpp"
+#include "bigint_bit_arith.cpp"
+#include "bigint_divmod.cpp"
+#include "bigint_ext.cpp"
+#include "bigint_io.cpp"
+#include "bigint_mul.cpp"
+// If there are other cpp files, include them here,
+// because instanizaiton is only here.
+namespace calc {
+// constructors
+template <typename IntT>
+BigInt<IntT>::BigInt(int value)
+    : cap_(sizeof(int) * 8 <= LIMB ? 1 : sizeof(int) * 8 / LIMB),
+      len_(0),
+      val_(new IntT[cap_]) {
+    if constexpr (sizeof(int) * 8 <= LIMB) {
+        val_[0] = IntT(value);
+        len_ = 1;
     } else {
-        for (; (str[i] >= '0' && str[i] <= '9') ||
-               (str[i] >= 'a' && str[i] < char('a' + base - 10));
-             ++i) {
-            (*this) *= base;
-            if (str[i] >= 'a')
-                *this += BigUInt<LEN>(static_cast<unsigned>(str[i] - 'a' + 10));
-            else
-                *this += BigUInt<LEN>(static_cast<unsigned>(str[i] - '0'));
-        }
+        do {
+            val_[len_++] = IntT(value);
+            value >>= LIMB;
+        } while (value != 0 && value != -1);
+        if (len_ < cap_) std::fill(val_ + len_, val_ + cap_, IntT(0));
+        if (len_ == 0) len_ = 1;
+        ShrinkLen();
     }
 }
-
-template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const BigUInt<LEN>& rhs) {
-    val_ = new unsigned[LEN];
-    // copy/copy_backward isn't overlap safe
-    // but memmove isn't non-POD (e.g. class type) safe
-    // memcpy is really raw but isn't necessarily faster
-    std::copy(rhs.val_, rhs.val_ + LEN, val_);
+template <typename IntT>
+BigInt<IntT>::BigInt(uint64_t value)
+    : cap_(64 / LIMB + 1), len_(0), val_(new IntT[cap_]) {
+    do {
+        val_[len_++] = IntT(value);
+        value >>= LIMB;
+    } while (value != 0);
+    std::fill(val_ + len_, val_ + cap_, IntT(0));
+    if (Sign()) ++len_;
+    ShrinkLen();
+}
+// copy constructor
+template <typename IntT>
+BigInt<IntT>::BigInt(const BigInt<IntT>& rhs) {
+    if (&rhs == this) {
+        // self-copy
+        cap_ = 1;
+        len_ = cap_;
+        val_ = new IntT[cap_];
+        std::fill(val_, val_ + cap_, IntT(0));
+    } else {
+        is_signed_ = rhs.is_signed_;
+        cap_ = rhs.cap_;
+        len_ = rhs.len_;
+        val_ = new IntT[rhs.cap_];
+        std::copy(rhs.val_, rhs.val_ + rhs.cap_, val_);
+    }
+}
+// move constructor
+template <typename IntT>
+BigInt<IntT>::BigInt(BigInt<IntT>&& rhs) noexcept : BigInt() {
+    // self-move guaranteed by swap
+    std::swap(is_signed_, rhs.is_signed_);
+    std::swap(cap_, rhs.cap_);
+    std::swap(len_, rhs.len_);
+    std::swap(val_, rhs.val_);
 }
 
-template <unsigned LEN>
-BigUInt<LEN>::BigUInt(BigUInt<LEN>&& rhs) noexcept {
-    val_ = rhs.val_;
-    rhs.val_ = nullptr;
-}
-
-// construct from raw data, protected
-
-template <unsigned LEN>
-BigUInt<LEN>::BigUInt(const unsigned* val, int len) : BigUInt() {
-    std::copy(val, val + len, val_);
-}
-
-template <unsigned LEN>
-BigUInt<LEN>::~BigUInt() {
+// destructor
+template <typename IntT>
+BigInt<IntT>::~BigInt() {
     delete[] val_;
 }
 
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator=(const BigUInt<LEN>& rhs) {
-    if (this != &rhs) std::copy(rhs.val_, rhs.val_ + LEN, val_);
+// assignment & type conversion operators
+// copy assignment, *only copy the value*
+template <typename IntT>
+BigInt<IntT>& BigInt<IntT>::operator=(const BigInt<IntT>& rhs) {
+    // check for self-copy assignment
+    if (&rhs == this) return *this;
+    if (len_ > rhs.len_) {
+        std::copy(rhs.val_, rhs.val_ + rhs.len_, val_);
+        std::fill(val_ + rhs.len_, val_ + len_, IntT(0));
+    } else if (cap_ >= rhs.len_) {
+        std::copy(rhs.val_, rhs.val_ + rhs.len_, val_);
+    } else {
+        delete[] val_;
+        val_ = new IntT[rhs.cap_];
+        std::copy(rhs.val_, rhs.val_ + rhs.cap_, val_);
+        cap_ = rhs.cap_;
+    }
+    is_signed_ = rhs.is_signed_;
+    len_ = rhs.len_;
     return *this;
 }
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator=(BigUInt<LEN>&& rhs) noexcept {
-    // self-safe guaranteed by std::swap
+// move assignment, after move becomes 0, but with whatever capacity
+template <typename IntT>
+BigInt<IntT>& BigInt<IntT>::operator=(BigInt<IntT>&& rhs) noexcept {
+    std::fill(val_, val_ + len_, IntT(0));
+    len_ = 1;
+    is_signed_ = true;
+    // self-safe guaranteed by swap
+    std::swap(is_signed_, rhs.is_signed_);
+    std::swap(cap_, rhs.cap_);
+    std::swap(len_, rhs.len_);
     std::swap(val_, rhs.val_);
     return *this;
 }
-
-// template <unsigned LEN>
-// [[deprecated]] BigUInt<LEN>& BigUInt<LEN>::operator=(BigUInt<LEN> rhs)
-// noexcept
-// {
-// // self assignment check
-// if (this != &rhs) ::cryp::swap(rhs, *this);
-// return *this;
-// // rhs will be automatically destroyed
-// }
-
-template <unsigned LEN>
-template <unsigned _LEN>
-BigUInt<LEN>::operator BigUInt<_LEN>() const {
-    BigUInt<_LEN> t;
-    if (LEN < _LEN)
-        std::copy(val_, val_ + LEN, t.val_);
-    else
-        std::copy(val_, val_ + _LEN, t.val_);
-    return t;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>::operator unsigned() const {
-    return val_[0];
-}
-
-template <unsigned LEN>
-BigUInt<LEN>::operator bool() const {
-    for (unsigned i = 0; i < LEN; ++i)
+template <typename IntT>
+BigInt<IntT>::operator bool() const {
+    for (size_t i = 0; i < len_; ++i)
         if (val_[i]) return true;
     return false;
 }
-
-template <unsigned LEN>
-bool BigUInt<LEN>::Sign() const {
-    return val_[LEN - 1] >> 31;
+template <typename IntT>
+BigInt<IntT>::operator uint64_t() const {
+    constexpr size_t seg = 64 / LIMB;
+    uint8_t i = len_ < seg ? len_ : seg;
+    uint64_t rv = 0;
+    while (i > 0) rv = (rv << LIMB) | val_[--i];
+    return rv;
 }
 
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::ToBitRev() {
-    // self-modify
-    for (unsigned i = 0; i < LEN; ++i) val_[i] = ~val_[i];
-    return *this;
+// basic operations
+template <typename IntT>
+bool BigInt<IntT>::Sign() const {
+    return val_[len_ - 1] >> (LIMB - 1);
 }
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator+=(const BigUInt<LEN>& rhs) {
-    unsigned overflow_flag = 0;
-    for (unsigned i = 0; i < LEN; ++i) {
-        val_[i] += overflow_flag;
-        val_[i] += rhs.val_[i];
-        if (val_[i] < rhs.val_[i] || (overflow_flag && val_[i] <= rhs.val_[i]))
-            overflow_flag = 1;
-        else
-            overflow_flag = 0;
-    }
-    return *this;
+template <typename IntT>
+bool BigInt<IntT>::Parity() const {
+    return val_[0] & 1;
 }
-
-template <unsigned LEN>
-BigUInt<LEN> operator+(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
-    return lhs += rhs;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator-=(const BigUInt<LEN>& rhs) {
-    // alternative: a-b=~(~a+b)
-    ToBitRev();
-    *this += rhs;
-    ToBitRev();
-    // or direct calculation also ok
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> operator-(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
-    return lhs -= rhs;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator++() {
-    for (unsigned i = 0; i < LEN; ++i) {
-        ++val_[i];
-        if (val_[i]) return *this;
-    }
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator--() {
-    // alternative: a-1=~(~a+1)
-    for (unsigned i = 0; i < LEN; ++i) {
-        --val_[i];
-        if (val_[i] != unsigned(-1)) return *this;
-    }
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> BigUInt<LEN>::operator++(int) {
-    BigUInt obj = *this;  // copy
-    ++*this;
-    return obj;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> BigUInt<LEN>::operator--(int) {
-    BigUInt obj = *this;  // copy
-    --*this;
-    return obj;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::ToOpposite() {
-    // self-modify
-    return ++ToBitRev();
-}
-
-template <unsigned LEN>
-BigUInt<LEN> BigUInt<LEN>::operator~() const {
-    BigUInt obj = *this;  // copy
-    obj.ToBitRev();
-    return obj;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> BigUInt<LEN>::operator-() const {
-    BigUInt obj = *this;  // copy
-    obj.ToOpposite();
-    return obj;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator&=(const BigUInt<LEN>& rhs) {
-    for (unsigned i = 0; i < LEN; ++i) val_[i] &= rhs.val_[i];
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> operator&(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
-    return lhs &= rhs;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator|=(const BigUInt<LEN>& rhs) {
-    for (unsigned i = 0; i < LEN; ++i) val_[i] |= rhs.val_[i];
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> operator|(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
-    return lhs |= rhs;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator^=(const BigUInt<LEN>& rhs) {
-    for (unsigned i = 0; i < LEN; ++i) val_[i] ^= rhs.val_[i];
-    return *this;
-}
-
-template <unsigned LEN>
-BigUInt<LEN> operator^(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs) {
-    return lhs ^= rhs;
-}
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator<<=(int shift) {
-    if (shift < 0) return *this >>= -shift;
-    if (shift >= int(LEN) * 32) {
-        std::fill(val_, val_ + LEN, 0);
-        return *this;
-    }
-    // shift = q*32 + r
-    int q = shift >> 5, r = shift & 31;
-    if (r) {
-        unsigned mask1 = unsigned(1 << (32 - r)) - 1;
-        unsigned mask2 = unsigned(-1) - mask1;
-        for (int i = int(LEN) - 1; i > q; --i) {
-            val_[i] = ((val_[i - q] & mask1) << r) +
-                      ((val_[i - q - 1] & mask2) >> (32 - r));
+template <typename IntT>
+size_t BigInt<IntT>::TrailingZero() const {
+    size_t i = 0, j = 0;
+    while (i < len_ && val_[i] == 0) ++i;
+    if (i == len_) {
+        return 0;  // is zero
+    } else {
+        IntT t = val_[i];
+        while ((t & 1) == 0) {
+            ++j;
+            t >>= 1;
         }
-        val_[q] = (val_[0] & mask1) << r;
-    } else {
-        for (int i = int(LEN) - 1; i >= q; --i) val_[i] = val_[i - q];
     }
-    // use std::fill instead of std::memset
-    if (q) std::fill(val_, val_ + q, 0);
+    return i * LIMB + j;
+}
+template <typename IntT>
+size_t BigInt<IntT>::BitLen() const {
+    size_t i = len_ - 1, j = LIMB;
+    while (i > 0 && val_[i] == 0) --i;
+    while (j > 0 && val_[i] < (IntT(1) << (j - 1))) --j;
+    return i * LIMB + j;
+}
+template <typename IntT>
+size_t BigInt<IntT>::Shrink() {
+    ShrinkLen();
+    size_t target = len_ << 1;
+    size_t new_cap = cap_;
+    if (len_ < MAX_CAP && cap_ >= target) {
+        while (new_cap >= target) new_cap >>= 1;
+        Resize(new_cap);
+    }
+    return cap_;
+}
+template <typename IntT>
+BigInt<IntT>& BigInt<IntT>::CutLen(size_t seg_len, size_t bit_len) {
+    if (seg_len > len_) return *this;
+    bit_len %= LIMB;
+    if (bit_len != 0) {
+        SetLen(seg_len, true);
+        auto mask = IntT(((IntT(1) << bit_len) - 1) | (IntT(1) << (LIMB - 1)));
+        val_[len_ - 1] &= mask;
+    } else if (Sign() != (val_[seg_len - 1] >> (LIMB - 1))) {
+        SetLen(seg_len + 1, true);
+        val_[len_ - 1] = Sign() ? IntT(-1) : IntT(0);
+    }
     return *this;
 }
-
-template <unsigned LEN>
-BigUInt<LEN> operator<<(BigUInt<LEN> lhs, int shift) {
-    return lhs <<= shift;
+template <typename IntT>
+BigInt<IntT>& BigInt<IntT>::CutBit(size_t bitlen) {
+    if (bitlen % LIMB == 0)
+        return CutLen(bitlen / LIMB, 0);
+    else
+        return CutLen(bitlen / LIMB + 1, bitlen % LIMB);
 }
-
-template <unsigned LEN>
-BigUInt<LEN>& BigUInt<LEN>::operator>>=(int shift) {
-    if (shift < 0) return *this <<= -shift;
-    if (shift >= int(LEN) * 32) {
-        std::fill(val_, val_ + LEN, 0);
-        return *this;
-    }
-    // shift = q*32 + r
-    auto q = static_cast<unsigned>(shift >> 5),
-         r = static_cast<unsigned>(shift & 31);
-    if (r) {
-        unsigned mask2 = unsigned(1 << r) - 1;
-        unsigned mask1 = unsigned(-1) - mask2;
-        for (unsigned i = 0; i < LEN - q - 1; ++i) {
-            val_[i] = ((val_[i + q] & mask1) >> r) +
-                      ((val_[i + q + 1] & mask2) << (32 - r));
+template <typename IntT>
+BigInt<IntT>& BigInt<IntT>::GenRandom(size_t length, size_t fixed) {
+    if (length == 0) length = len_;
+    SetLen(length, false);
+    for (size_t i = 0; i < len_; ++i) val_[i] = rand_(rand_gen_);
+    if (fixed != 0) {
+        fixed %= LIMB;
+        if (fixed == 0) {
+            val_[len_ - 1] |= IntT(1) << (LIMB - 1);
+            SetLen(len_ + 1, false);
+        } else {
+            val_[len_ - 1] <<= (LIMB - fixed);
+            val_[len_ - 1] >>= (LIMB - fixed);
+            val_[len_ - 1] |= IntT(1) << (fixed - 1);
         }
-        val_[LEN - q - 1] = (val_[LEN - 1] & mask1) >> r;
-    } else {
-        for (unsigned i = 0; i <= LEN - q - 1; ++i) val_[i] = val_[i + q];
+    } else if (Sign()) {
+        SetLen(len_ + 1, false);
     }
-    // use std::fill instead of std::memset
-    if (q) std::fill(val_ + LEN - q, val_ + LEN, 0);
     return *this;
 }
-
-template <unsigned LEN>
-BigUInt<LEN> operator>>(BigUInt<LEN> lhs, int shift) {
-    return lhs >>= shift;
+template <typename IntT>
+const IntT* BigInt<IntT>::Data() const {
+    return val_;
+}
+template <typename IntT>
+size_t BigInt<IntT>::Length() const {
+    return len_;
 }
 
-template <unsigned LEN>
-void BigUInt<LEN>::PrintBinU(std::FILE* f) const {
-    int st = LEN;
-    // template inheritance requires this for base member access
-    while (st > 0 && !this->val_[--st])
-        ;
-    unsigned mask[32];
-    char str[33];
-    str[32] = '\0';
-    int i, j;
-    for (i = 0; i < 32; ++i) mask[i] = 1 << i;
-    for (j = 31; j >= 0; --j)
-        if (mask[j] & this->val_[st])
-            str[31 - j] = '1';
+// comparison
+#ifdef __cpp_impl_three_way_comparison
+template <typename IntT>
+std::strong_ordering BigInt<IntT>::operator<=>(const BigInt& rhs) const {
+    const bool sign[2] = {Sign(), rhs.Sign()};
+    auto cmp = len_ <=> rhs.len_;
+    if (sign[0] != sign[1]) {
+        if (sign[1])
+            return std::strong_ordering::greater;
         else
-            str[31 - j] = '0';
-    j = 0;
-    while (j < 31 && str[j] == '0') ++j;
-    std::fprintf(f, "0b%s", str + j);
-    for (i = st - 1; i >= 0; --i) {
-        for (j = 31; j >= 0; --j)
-            if (mask[j] & this->val_[i])
-                str[j] = '1';
-            else
-                str[j] = '0';
-        std::fprintf(f, "%s", str);
-    }
-}
-
-template <unsigned LEN>
-void BigUInt<LEN>::PrintHexU(std::FILE* f) const {
-    int st = LEN;
-    // template inheritance requires this for base member access
-    while (st > 0 && !this->val_[--st])
-        ;
-    std::fprintf(f, "0x%x", this->val_[st]);
-    for (int i = st - 1; i >= 0; --i) std::fprintf(f, "%08x", this->val_[i]);
-}
-
-template <unsigned LEN>
-void BigUInt<LEN>::PrintHEXU(std::FILE* f) const {
-    int st = LEN;
-    // template inheritance requires this for base member access
-    while (st > 0 && !this->val_[--st])
-        ;
-    std::fprintf(f, "0X%X", this->val_[st]);
-    for (int i = st - 1; i >= 0; --i) std::fprintf(f, "%08X", this->val_[i]);
-}
-
-template <unsigned LEN>
-template <unsigned _LEN>
-int BigUInt<LEN>::Compare(const BigUInt<_LEN>& rhs) const {
-    if (LEN > _LEN) {
-        for (unsigned i = LEN - 1; i >= _LEN; --i)
-            if (val_[i] > 0) return 1;
-        for (int i = int(_LEN) - 1; i >= 0; --i)
-            if (val_[i] != rhs.val_[i]) {
-                if (val_[i] < rhs.val_[i])
-                    return -1;
+            return std::strong_ordering::less;
+    } else if (cmp == 0) {
+        // i>=0 is always true!
+        for (size_t i = len_ - 1; i != size_t(-1); --i)
+            if ((cmp = val_[i] <=> rhs.val_[i]) != 0) return cmp;
+    } else if (cmp < 0) {
+        const IntT empty_limb = sign[0] ? IntT(-1) : IntT(0);
+        // implicit alignment
+        for (size_t i = rhs.len_ - 1; i >= len_; --i)
+            if (rhs.val_[i] != empty_limb) {
+                if (sign[0])
+                    return std::strong_ordering::greater;
                 else
-                    return 1;
+                    return std::strong_ordering::less;
             }
+        for (size_t i = len_ - 1; i != size_t(-1); --i)
+            if ((cmp = val_[i] <=> rhs.val_[i]) != 0) return cmp;
     } else {
-        for (unsigned i = _LEN - 1; i >= LEN; --i)
-            if (rhs.val_[i] > 0) return -1;
-        for (int i = int(LEN) - 1; i >= 0; --i)
-            if (val_[i] != rhs.val_[i]) {
-                if (val_[i] < rhs.val_[i])
-                    return -1;
+        const IntT empty_limb = sign[0] ? IntT(-1) : IntT(0);
+        // implicit alignment
+        for (size_t i = len_ - 1; i >= rhs.len_; --i)
+            if (val_[i] != empty_limb) {
+                if (!sign[0])
+                    return std::strong_ordering::greater;
                 else
-                    return 1;
+                    return std::strong_ordering::less;
             }
+        for (size_t i = rhs.len_ - 1; i != size_t(-1); --i)
+            if ((cmp = val_[i] <=> rhs.val_[i]) != 0) return cmp;
+    }
+    return std::strong_ordering_equal;
+}
+#else
+template <typename IntT>
+int BigInt<IntT>::Compare(const BigInt& rhs) const {
+    const bool sign[2] = {Sign(), rhs.Sign()};
+    if (sign[0] != sign[1]) {
+        if (sign[1])
+            return 1;
+        else
+            return -1;
+    } else if (len_ == rhs.len_) {
+        // i>=0 is always true!
+        for (size_t i = len_ - 1; i != size_t(-1); --i) {
+            if (val_[i] != rhs.val_[i]) {
+                if (val_[i] > rhs.val_[i])
+                    return 1;
+                else
+                    return -1;
+            }
+        }
+    } else if (len_ < rhs.len_) {
+        const IntT empty_limb = sign[0] ? IntT(-1) : IntT(0);
+        // implicit alignment
+        for (size_t i = rhs.len_ - 1; i >= len_; --i)
+            if (rhs.val_[i] != empty_limb) {
+                if (sign[0])
+                    return 1;
+                else
+                    return -1;
+            }
+        for (size_t i = len_ - 1; i != size_t(-1); --i) {
+            if (val_[i] != rhs.val_[i]) {
+                if (val_[i] > rhs.val_[i])
+                    return 1;
+                else
+                    return -1;
+            }
+        }
+    } else {
+        const IntT empty_limb = sign[0] ? IntT(-1) : IntT(0);
+        // implicit alignment
+        for (size_t i = len_ - 1; i >= rhs.len_; --i)
+            if (val_[i] != empty_limb) {
+                if (!sign[0])
+                    return 1;
+                else
+                    return -1;
+            }
+        for (size_t i = rhs.len_ - 1; i != size_t(-1); --i) {
+            if (val_[i] != rhs.val_[i]) {
+                if (val_[i] > rhs.val_[i])
+                    return 1;
+                else
+                    return -1;
+            }
+        }
     }
     return 0;
 }
+#endif
 
-template <unsigned LEN1, unsigned LEN2>
-bool operator<(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) < 0;
-}
-template <unsigned LEN1, unsigned LEN2>
-bool operator>(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) > 0;
-}
-template <unsigned LEN1, unsigned LEN2>
-bool operator<=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) <= 0;
-}
-template <unsigned LEN1, unsigned LEN2>
-bool operator>=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) >= 0;
-}
-template <unsigned LEN1, unsigned LEN2>
-bool operator==(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) == 0;
-}
-template <unsigned LEN1, unsigned LEN2>
-bool operator!=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs) {
-    return lhs.Compare(rhs) != 0;
-}
-
-template <unsigned LEN>
-void BigUInt<LEN>::GenRandom(unsigned len) {
-    for (unsigned i = 0; i < len; ++i) val_[i] = rand_(rand_gen_);
-    if (len < LEN) std::fill(val_ + len, val_ + LEN, 0);
-}
-
-template <unsigned LEN>
-void BigUInt<LEN>::Print(unsigned base, std::FILE* f) const {
-    std::string str;
-    unsigned r;
-    char c;
-    if (base < 2 || base > 32) base = 10;
-    if (base == 16) {
-        PrintHexU();
-    } else if (base == 2) {
-        PrintBinU();
-    } else if (base == 10) {
-        BigUInt<LEN> tmp = *this;
-        if (!tmp) {
-            std::fprintf(f, "0");
-            return;
-        }
-        while (tmp) {
-            tmp.DivEq_Basic(10, &r);
-            str.insert(0, 1, '0' + static_cast<char>(r));
-        }
-        std::fprintf(f, "%s", str.c_str());
+// private constructor
+template <typename IntT>
+BigInt<IntT>::BigInt(const IntT* data, size_t length) {
+    cap_ = 1;
+    if (length == 0) {
+        len_ = 1;
+        val_ = new IntT[1];
+        val_[0] = IntT(0);
     } else {
-        BigUInt<LEN> tmp = *this;
-        if (!tmp) {
-            std::fprintf(f, "0(base%d)", base);
-            return;
-        }
-        while (tmp) {
-            tmp.DivEq_Basic(base, &r);
-            if (r < 10)
-                c = '0' + static_cast<char>(r);
-            else
-                c = 'a' + static_cast<char>(r - 10);
-            str.insert(0, 1, c);
-        }
-        std::fprintf(f, "%s(base%d)", str.c_str(), base);
+        if (length > MAX_CAP) length = MAX_CAP;
+        while (cap_ < length) cap_ <<= 1;
+        len_ = length;
+        val_ = new IntT[cap_];
+        std::copy(data, data + length, val_);
+        if (cap_ > length) std::fill(val_ + length, val_ + cap_, IntT(0));
     }
 }
 
-template <unsigned LEN>
-unsigned BigUInt<LEN>::Mod_Basic(unsigned rhs) const {
-    BigUInt<LEN> tmp = *this;
-    unsigned r;
-    tmp.DivEq_Basic(rhs, &r);
-    return r;
+// private functions
+template <typename IntT>
+void BigInt<IntT>::SetLen(size_t new_len, bool preserve_sign) {
+    if (new_len == 0)
+        new_len = 1;
+    else if (new_len > MAX_CAP)
+        new_len = MAX_CAP;
+    const bool sign = Sign();
+    const auto empty_limb = (sign && preserve_sign) ? IntT(-1) : IntT(0);
+    if (new_len < len_) {
+        while (len_ > new_len) val_[--len_] = IntT(0);
+        if (preserve_sign) {
+            // set the highest as sign bit
+            val_[len_ - 1] &= IntT(-1) >> 1;
+            val_[len_ - 1] |= IntT(sign << (LIMB - 1));
+        }
+        AutoShrinkSize();
+    } else if (new_len > len_) {
+        if (new_len > cap_) AutoExpandSize(new_len);
+        while (len_ < new_len) val_[len_++] = empty_limb;
+    }
+    // if new_len == len_: do nothing
 }
-// explicit instantiation
-template class BigUInt<0u>;
-template class BigUInt<1u>;
-template class BigUInt<2u>;
-template class BigUInt<4>;
-template class BigUInt<8>;
-template class BigUInt<16>;
-template class BigUInt<32>;
-template class BigUInt<64>;
-template class BigUInt<128>;
-template class BigUInt<256>;
-template BigUInt<4u>::operator BigUInt<8u>() const;
-template BigUInt<8u>::operator BigUInt<16u>() const;
-template BigUInt<16u>::operator BigUInt<32u>() const;
-template BigUInt<32u>::operator BigUInt<64u>() const;
-template BigUInt<64u>::operator BigUInt<128u>() const;
-template BigUInt<128u>::operator BigUInt<256u>() const;
-template BigUInt<256u>::operator BigUInt<128u>() const;
-template BigUInt<128u>::operator BigUInt<64u>() const;
-template BigUInt<64u>::operator BigUInt<32u>() const;
-template BigUInt<32u>::operator BigUInt<16u>() const;
-template BigUInt<16u>::operator BigUInt<8u>() const;
-template BigUInt<8u>::operator BigUInt<4u>() const;
-}  // namespace cryp
+template <typename IntT>
+void BigInt<IntT>::ShrinkLen() {
+    const bool sign = Sign();
+    const auto empty_limb = sign ? IntT(-1) : IntT(0);
+    while (len_ > 1 && val_[len_ - 1] == empty_limb &&
+           (val_[len_ - 2] >> (LIMB - 1)) == sign)
+        val_[--len_] = IntT(0);
+}
+template <typename IntT>
+void BigInt<IntT>::Resize(size_t new_cap) {
+    if (new_cap == cap_) return;
+    auto tmp_val = new IntT[new_cap];
+    if (new_cap > cap_) {
+        std::copy(val_, val_ + cap_, tmp_val);
+        std::fill(tmp_val + cap_, tmp_val + new_cap, IntT(0));
+    } else {
+        std::copy(val_, val_ + new_cap, tmp_val);
+    }
+    std::swap(val_, tmp_val);
+    delete[] tmp_val;
+    cap_ = new_cap;
+}
+template <typename IntT>
+void BigInt<IntT>::AutoExpandSize(size_t target_len) {
+    size_t new_cap = cap_;
+    while (new_cap < MAX_CAP && new_cap < target_len) new_cap <<= 1;
+    Resize(new_cap);
+}
+// Shrink size if certain condition is met
+template <typename IntT>
+void BigInt<IntT>::AutoShrinkSize() {
+    if (len_ <= (cap_ >> 3)) {
+        size_t new_cap = cap_ >> 3;
+        while (new_cap > 1 && len_ <= new_cap) new_cap >>= 1;
+        Resize(new_cap << 1);
+    }
+}
+
+#ifndef __cpp_impl_three_way_comparison
+template <typename IntT>
+bool operator<(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) < 0;
+}
+template <typename IntT>
+bool operator>(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) > 0;
+}
+template <typename IntT>
+bool operator<=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) <= 0;
+}
+template <typename IntT>
+bool operator>=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) >= 0;
+}
+template <typename IntT>
+bool operator==(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) == 0;
+}
+template <typename IntT>
+bool operator!=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs) {
+    return lhs.Compare(rhs) != 0;
+}
+#endif
+
+// explicit instanization
+template class BigInt<uint8_t>;
+template class BigInt<uint16_t>;
+template class BigInt<uint32_t>;
+
+// explicit instanizaiton of functions
+template BigInt<uint8_t> operator&(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator|(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator^(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator<<(BigInt<uint8_t> lhs, size_t rhs);
+template BigInt<uint8_t> operator>>(BigInt<uint8_t> lhs, size_t rhs);
+template std::istream& operator>>(std::istream& in, BigInt<uint8_t>& rhs);
+template std::ostream& operator<<(std::ostream& out,
+                                  const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator+(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator-(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs, uint8_t rhs);
+template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs, uint8_t rhs);
+template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs, uint8_t rhs);
+template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs,
+                                   const BigInt<uint8_t>& rhs);
+template BigInt<uint8_t> BigProduct(uint64_t a, uint64_t b);
+template BigInt<uint8_t> Factorial(uint64_t n);
+template BigInt<uint8_t> Power(const BigInt<uint8_t>& a, uint64_t p);
+template BigInt<uint8_t> PowMod(const BigInt<uint8_t>& a, uint64_t p,
+                                const BigInt<uint8_t>& n);
+template BigInt<uint8_t> PowMod(const BigInt<uint8_t>& a,
+                                const BigInt<uint8_t>& p,
+                                const BigInt<uint8_t>& n);
+template BigInt<uint8_t> GcdBin(BigInt<uint8_t> a, BigInt<uint8_t> b);
+template BigInt<uint8_t> ExtGcdBin(BigInt<uint8_t> a, BigInt<uint8_t> b,
+                                   BigInt<uint8_t>* x, BigInt<uint8_t>* y);
+
+template BigInt<uint16_t> operator&(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator|(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator^(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator<<(BigInt<uint16_t> lhs, size_t rhs);
+template BigInt<uint16_t> operator>>(BigInt<uint16_t> lhs, size_t rhs);
+template std::istream& operator>>(std::istream& in, BigInt<uint16_t>& rhs);
+template std::ostream& operator<<(std::ostream& out,
+                                  const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator+(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator-(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs, uint16_t rhs);
+template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs, uint16_t rhs);
+template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs, uint16_t rhs);
+template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs,
+                                    const BigInt<uint16_t>& rhs);
+template BigInt<uint16_t> BigProduct(uint64_t a, uint64_t b);
+template BigInt<uint16_t> Factorial(uint64_t n);
+template BigInt<uint16_t> Power(const BigInt<uint16_t>& a, uint64_t p);
+template BigInt<uint16_t> PowMod(const BigInt<uint16_t>& a, uint64_t p,
+                                 const BigInt<uint16_t>& n);
+template BigInt<uint16_t> PowMod(const BigInt<uint16_t>& a,
+                                 const BigInt<uint16_t>& p,
+                                 const BigInt<uint16_t>& n);
+template BigInt<uint16_t> GcdBin(BigInt<uint16_t> a, BigInt<uint16_t> b);
+template BigInt<uint16_t> ExtGcdBin(BigInt<uint16_t> a, BigInt<uint16_t> b,
+                                    BigInt<uint16_t>* x, BigInt<uint16_t>* y);
+
+template BigInt<uint32_t> operator&(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator|(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator^(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator<<(BigInt<uint32_t> lhs, size_t rhs);
+template BigInt<uint32_t> operator>>(BigInt<uint32_t> lhs, size_t rhs);
+template std::istream& operator>>(std::istream& in, BigInt<uint32_t>& rhs);
+template std::ostream& operator<<(std::ostream& out,
+                                  const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator+(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator-(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs, uint32_t rhs);
+template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs, uint32_t rhs);
+template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs, uint32_t rhs);
+template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs,
+                                    const BigInt<uint32_t>& rhs);
+template BigInt<uint32_t> BigProduct(uint64_t a, uint64_t b);
+template BigInt<uint32_t> Factorial(uint64_t n);
+template BigInt<uint32_t> Power(const BigInt<uint32_t>& a, uint64_t p);
+template BigInt<uint32_t> PowMod(const BigInt<uint32_t>& a, uint64_t p,
+                                 const BigInt<uint32_t>& n);
+template BigInt<uint32_t> PowMod(const BigInt<uint32_t>& a,
+                                 const BigInt<uint32_t>& p,
+                                 const BigInt<uint32_t>& n);
+template BigInt<uint32_t> GcdBin(BigInt<uint32_t> a, BigInt<uint32_t> b);
+template BigInt<uint32_t> ExtGcdBin(BigInt<uint32_t> a, BigInt<uint32_t> b,
+                                    BigInt<uint32_t>* x, BigInt<uint32_t>* y);
+#ifndef __cpp_impl_three_way_comparison
+template bool operator<(const BigInt<uint8_t>& lhs, const BigInt<uint8_t>& rhs);
+template bool operator>(const BigInt<uint8_t>& lhs, const BigInt<uint8_t>& rhs);
+template bool operator<=(const BigInt<uint8_t>& lhs,
+                         const BigInt<uint8_t>& rhs);
+template bool operator>=(const BigInt<uint8_t>& lhs,
+                         const BigInt<uint8_t>& rhs);
+template bool operator==(const BigInt<uint8_t>& lhs,
+                         const BigInt<uint8_t>& rhs);
+template bool operator!=(const BigInt<uint8_t>& lhs,
+                         const BigInt<uint8_t>& rhs);
+template bool operator<(const BigInt<uint16_t>& lhs,
+                        const BigInt<uint16_t>& rhs);
+template bool operator>(const BigInt<uint16_t>& lhs,
+                        const BigInt<uint16_t>& rhs);
+template bool operator<=(const BigInt<uint16_t>& lhs,
+                         const BigInt<uint16_t>& rhs);
+template bool operator>=(const BigInt<uint16_t>& lhs,
+                         const BigInt<uint16_t>& rhs);
+template bool operator==(const BigInt<uint16_t>& lhs,
+                         const BigInt<uint16_t>& rhs);
+template bool operator!=(const BigInt<uint16_t>& lhs,
+                         const BigInt<uint16_t>& rhs);
+template bool operator<(const BigInt<uint32_t>& lhs,
+                        const BigInt<uint32_t>& rhs);
+template bool operator>(const BigInt<uint32_t>& lhs,
+                        const BigInt<uint32_t>& rhs);
+template bool operator<=(const BigInt<uint32_t>& lhs,
+                         const BigInt<uint32_t>& rhs);
+template bool operator>=(const BigInt<uint32_t>& lhs,
+                         const BigInt<uint32_t>& rhs);
+template bool operator==(const BigInt<uint32_t>& lhs,
+                         const BigInt<uint32_t>& rhs);
+template bool operator!=(const BigInt<uint32_t>& lhs,
+                         const BigInt<uint32_t>& rhs);
+#endif
+}  // namespace calc

@@ -1,317 +1,414 @@
 #ifndef BIGINT_HPP
 #define BIGINT_HPP
+#include <complex>
 #include <cstring>
 #include <iostream>
 #include <random>
 #include <utility>
-namespace cryp {
-// NOTE: "fixed length" version
-// we are using it in number theory, so it will always be unsigned,
-// unless sometimes represented by signed
-template <unsigned LEN>
-class BigUInt {
-   public:
-    // NO implicit type conversion allowed
-    explicit BigUInt(const uint64_t val = 0);
-    explicit BigUInt(const char* str, unsigned base = 0);
-    explicit BigUInt(const std::string& str, unsigned base = 0)
-        : BigUInt(str.c_str(), base) {}
-    // copy constructor
-    BigUInt(const BigUInt& rhs);
-    // move constructor
-    BigUInt(BigUInt&& rhs) noexcept;
-    virtual ~BigUInt();
-    // copy assignment
-    BigUInt& operator=(const BigUInt& rhs);
-    // move assignment, with possible memory reuse
-    BigUInt& operator=(BigUInt&& rhs) noexcept;
-    // copy/move operator, when memory reuse is not possible
-    // [[deprecated]] BigUInt& operator=(BigUInt rhs) noexcept;
-    // no memory reuse, all copy
-    template <unsigned _LEN>
-    explicit operator BigUInt<_LEN>() const;
-    explicit operator unsigned() const;
-    explicit operator bool() const;
-    bool Sign() const;
-    BigUInt& ToBitRev();
-    BigUInt& operator+=(const BigUInt& rhs);
-    BigUInt& operator-=(const BigUInt& rhs);
-    // DON'T write +=1, for the cost of construct in fixed length is high
-    BigUInt& operator++();  // ++i
-    BigUInt& operator--();
-    BigUInt operator++(int);  // i++
-    BigUInt operator--(int);
-    BigUInt& ToOpposite();
-    BigUInt operator~() const;
-    BigUInt operator-() const;
-    BigUInt& operator&=(const BigUInt& rhs);
-    BigUInt& operator|=(const BigUInt& rhs);
-    BigUInt& operator^=(const BigUInt& rhs);
-    BigUInt& operator<<=(int shift);
-    BigUInt& operator>>=(int shift);
-    void PrintBinU(std::FILE* f = stdout) const;
-    void PrintHexU(std::FILE* f = stdout) const;
-    // upper case 0X
-    void PrintHEXU(std::FILE* f = stdout) const;
-#ifdef __cpp_impl_three_way_comparison
-    // DO LATER: three-way comparison in c++20
-#else
-#pragma message(                        \
-    "No three way comparison support. " \
-    "Consider compiling with c++20 if possible.")
-    template <unsigned _LEN>
-    // comparison permitted between different length
-    int Compare(const BigUInt<_LEN>& rhs) const;
-#endif
-    // bigmul_div_mod.cpp
-    BigUInt& operator*=(unsigned rhs);
-    BigUInt& operator*=(const BigUInt& rhs);
-    BigUInt& MulEq_Plain(const BigUInt& rhs);
-    [[maybe_unused]] BigUInt& MulEq_Karatsuba(const BigUInt& rhs);
-    // r is to store the remainder
-    BigUInt& operator/=(unsigned rhs);
-    BigUInt& operator/=(const BigUInt& rhs);
-    BigUInt& operator%=(const BigUInt& rhs);
-    BigUInt& DivEq_Basic(unsigned rhs, unsigned* r_ = nullptr);
-    BigUInt& DivEq_Plain(const BigUInt& rhs, BigUInt* r_ = nullptr);
-    unsigned Mod10() const;
-    void GenRandom(unsigned len = LEN);
-    // arbitrary base (2--32) I/O
-    void Print(unsigned base = 10, std::FILE* f = stdout) const;
-    unsigned Mod_Basic(unsigned rhs) const;
-    // TODO(): write mul&div in bigmul_div_mod.cpp
+namespace calc {
 
-   protected:
+// IntT should be unsigned int,
+// and twice of length should be representable by basic type.
+// To avoid waste of time,
+// self-modifying functions should ensure the length is reset.
+// A shorter limb may cause faster add/sub,
+// but will harm the maximum length that a fast multiplication can handle with.
+template <typename IntT = uint16_t>
+class BigInt {
+   public:
+    bool is_signed_ = true;
+    // constructors
+    explicit BigInt(int value = 0);
+    explicit BigInt(uint64_t value);
+    // copy constructor
+    BigInt(const BigInt& rhs);
+    // move constructor
+    BigInt(BigInt&& rhs) noexcept;
+    // construct by \0 terminated c-style string, base=0 is auto-detect
+    explicit BigInt(const char* str, size_t base = 0);
+    explicit BigInt(const std::string& str, size_t base = 0)
+        : BigInt(str.c_str(), base) {}
+
+    // destructor
+    virtual ~BigInt();
+
+    // assignment & type conversion operators
+    // copy assignment, *only copy the value*
+    BigInt& operator=(const BigInt& rhs);
+    // move assignment, with possible memory reuse
+    BigInt& operator=(BigInt&& rhs) noexcept;
+    BigInt& operator=(const char* str);
+    BigInt& operator=(const std::string& str);
+    explicit operator bool() const;
+    explicit operator std::string() const;
+    explicit operator uint64_t() const;
+    std::string ToString(size_t base, bool uppercase = false,
+                         int showbase = 0) const;
+
+    // basic operations
+    bool Sign() const;
+    bool Parity() const;
+    size_t TrailingZero() const;
+    size_t BitLen() const;
+    // shrink the size allocated to *a power of 2*
+    // @return: capacity after shrink
+    size_t Shrink();
+    // the sign will be preserved, so len_ may be seg_len+1 if bit_len%LIMB==0
+    BigInt& CutLen(size_t seg_len, size_t bit_len = 0);
+    BigInt& CutBit(size_t bitlen);
+    // assign non-negative random value
+    BigInt& GenRandom(size_t length = 0, size_t fixed = 0);
+    const IntT* Data() const;
+    size_t Length() const;
+
+    // bit arithmetic
+    BigInt& ToBitInv();  // modifying version of ~a
+    BigInt operator~() const;
+    BigInt& operator&=(const BigInt& rhs);
+    BigInt& operator|=(const BigInt& rhs);
+    BigInt& operator^=(const BigInt& rhs);
+    BigInt& operator<<=(size_t rhs);
+    BigInt& operator>>=(size_t rhs);
+
+    // comparison
+#ifdef __cpp_impl_three_way_comparison
+    std::weak_ordering operator<=>(const BigInt& rhs) const;
+#else
+    int Compare(const BigInt& rhs) const;
+#endif
+
+    // operator +=,-=,++,--
+    BigInt& operator+=(IntT rhs);
+    BigInt& operator+=(const BigInt& rhs);
+    BigInt& operator-=(const BigInt& rhs);
+    BigInt& operator++();  // ++i
+    BigInt& operator--();
+    BigInt operator++(int);  // i++
+    BigInt operator--(int);
+    BigInt& ToOpposite();  // modifying version of -a
+    BigInt operator-() const;
+    BigInt& ToAbsolute();
+
+    // operator *=,/=,%=
+    BigInt& operator*=(IntT rhs);
+    BigInt& operator*=(const BigInt& rhs);
+    BigInt& operator/=(IntT rhs);
+    BigInt& operator/=(const BigInt& rhs);
+    BigInt& operator%=(IntT rhs);
+    BigInt& operator%=(const BigInt& rhs);
+    BigInt& BasicDivEq(IntT rhs, IntT* mod = nullptr);
+    BigInt& PlainMulEq(const BigInt& rhs);
+    BigInt& FFTMulEq(const BigInt& rhs);
+    BigInt& PlainDivEq(const BigInt& rhs, BigInt* mod = nullptr);
+    BigInt& DivEqAlgA(const BigInt& rhs, BigInt* mod = nullptr);
+    BigInt& DivEqAlgB(const BigInt& rhs, BigInt* mod = nullptr);
+    BigInt& DivEqRecursive(const BigInt& rhs, BigInt* mod = nullptr);
+
+    // non-modifying
+    static BigInt PlainMul(BigInt lhs, const BigInt& rhs);
+    static BigInt FFTMul(BigInt lhs, const BigInt& rhs);
+    static BigInt BasicDiv(BigInt lhs, IntT rhs, IntT* mod = nullptr);
+    static BigInt PlainDiv(BigInt lhs, const BigInt& rhs,
+                           BigInt* mod = nullptr);
+    static BigInt DivAlgA(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt DivAlgB(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt DivRecursive(BigInt lhs, const BigInt& rhs,
+                               BigInt* mod = nullptr);
+
+    // I/O
+    // currently accept 2<=base<=36, other value will be 10
+    //@param: showbase: 0) don't show, 1) 0xabc, 0XA0B, 1a_12, 2) abc_16
+    void Print(size_t base = 10, bool uppercase = false, int showbase = 0,
+               std::FILE* f = stdout) const;
+    template <typename _IntT>
+    friend std::ostream& operator<<(std::ostream& out,
+                                    const BigInt<_IntT>& rhs);
+
+    // extended arithmetic
+    double log2() const;
+    double log10() const;
+    bool isProbablePrime() const;
+
+   private:
+    // construct from raw data
+    explicit BigInt(const IntT* data, size_t length);
+
+    // data
+    static constexpr size_t LIMB = sizeof(IntT) << 3;
+    static constexpr size_t MAX_CAP = size_t(1) << 63;
+    size_t cap_ = 1;  // capacity, currently must be *a power of 2*
+    size_t len_ = 1;  // actual used length
+    IntT* val_ = nullptr;
+
+    // random device
     // NOLINTNEXTLINE: c++17 ok
     inline static std::random_device rand_dev_;
     // NOLINTNEXTLINE: c++17 ok
     inline static auto rand_gen_ = static_cast<std::mt19937>(rand_dev_());
+    // usage: rand_(rand_gen_)
     // NOLINTNEXTLINE: c++17 ok
-    inline static std::uniform_int_distribution<unsigned> rand_;
-    unsigned* val_;
+    inline static std::uniform_int_distribution<IntT> rand_;
 
-    // construct from raw data is not public
-    explicit BigUInt(const unsigned* val, int len = LEN);
-    [[maybe_unused]] BigUInt& MulEq_Karatsuba_Recursion(const BigUInt& rhs);
+    // private functions
+    // used to align the length if needed
+    // accept cut and expand
+    void SetLen(size_t new_len, bool preserve_sign);
+    // shrink the len_,
+    // must ensure target len is definitely not longer than current len.
+    // preserve sign
+    // @return: len after shrink
+    void ShrinkLen();
+    void Resize(size_t new_cap);
+    void AutoExpandSize(size_t target_len);
+    // Shrink size if certain condition is met
+    void AutoShrinkSize();
 
-    template <unsigned>
-    friend class BigUInt;
-    struct Instanization;
+    // FFT
+    template <typename T>
+    static void BitRevSort(T* a, size_t n);
+    static void FFT(std::complex<double>* dest, size_t n, bool inv);
+
+    // extended arithmetic
+    template <typename _IntT>
+    friend BigInt<_IntT> Power(const BigInt<_IntT>& a, uint64_t p);
+    template <typename _IntT>
+    friend BigInt<_IntT> PowMod(const BigInt<_IntT>& a, const BigInt<_IntT>& p,
+                                const BigInt<_IntT>& n);
+    template <typename _IntT>
+    friend BigInt<_IntT> PowMod(const BigInt<_IntT>& a, uint64_t p,
+                                const BigInt<_IntT>& n);
 };
 
+// specialization
+// LIMB>21 can't use AlgB, redirect to AlgA
+template <>
+BigInt<uint32_t>& BigInt<uint32_t>::DivEqAlgB(const BigInt& rhs, BigInt* mod);
+
+// stream operators
+template <typename IntT>
+std::istream& operator>>(std::istream& in, BigInt<IntT>& rhs);
+template <typename IntT>
+std::ostream& operator<<(std::ostream& out, const BigInt<IntT>& rhs);
+
+// extended arithmetic
+template <typename IntT>
+BigInt<IntT> BigProduct(uint64_t a, uint64_t b);
+template <typename IntT>
+BigInt<IntT> Factorial(uint64_t n);
+template <typename IntT>
+BigInt<IntT> Power(const BigInt<IntT>& a, uint64_t p);
+template <typename IntT>
+BigInt<IntT> PowMod(const BigInt<IntT>& a, const BigInt<IntT>& p,
+                    const BigInt<IntT>& n);
+template <typename IntT>
+BigInt<IntT> PowMod(const BigInt<IntT>& a, uint64_t p, const BigInt<IntT>& n);
+template <typename IntT>
+BigInt<IntT> GcdBin(BigInt<IntT> a, BigInt<IntT> b);
+template <typename IntT>
+BigInt<IntT> ExtGcdBin(BigInt<IntT> a, BigInt<IntT> b, BigInt<IntT>* x,
+                       BigInt<IntT>* y);
+
+// non-modifying binary operators
 // Google: prefer to define non-modifying binary operators as non-member func
-template <unsigned LEN>
-BigUInt<LEN> operator+(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator-(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator&(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator|(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator^(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-// bit shift
-template <unsigned LEN>
-BigUInt<LEN> operator<<(BigUInt<LEN> lhs, int shift);
-template <unsigned LEN>
-BigUInt<LEN> operator>>(BigUInt<LEN> lhs, int shift);
-// comparison permitted between different length
-template <unsigned LEN1, unsigned LEN2>
-bool operator<(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-template <unsigned LEN1, unsigned LEN2>
-bool operator>(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-template <unsigned LEN1, unsigned LEN2>
-bool operator<=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-template <unsigned LEN1, unsigned LEN2>
-bool operator>=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-template <unsigned LEN1, unsigned LEN2>
-bool operator==(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-template <unsigned LEN1, unsigned LEN2>
-bool operator!=(const BigUInt<LEN1>& lhs, const BigUInt<LEN2>& rhs);
-// bigmul_div_mod.cpp
-template <unsigned LEN>
-BigUInt<LEN> operator*(BigUInt<LEN> lhs, unsigned rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator/(BigUInt<LEN> lhs, unsigned rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator*(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator/(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
-template <unsigned LEN>
-BigUInt<LEN> operator%(BigUInt<LEN> lhs, const BigUInt<LEN>& rhs);
+template <typename IntT>
+BigInt<IntT> operator&(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator|(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator^(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator<<(BigInt<IntT> lhs, size_t rhs);
+template <typename IntT>
+BigInt<IntT> operator>>(BigInt<IntT> lhs, size_t rhs);
+template <typename IntT>
+BigInt<IntT> operator+(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator-(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator*(BigInt<IntT> lhs, IntT rhs);
+template <typename IntT>
+BigInt<IntT> operator*(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator/(BigInt<IntT> lhs, IntT rhs);
+template <typename IntT>
+BigInt<IntT> operator/(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+BigInt<IntT> operator%(BigInt<IntT> lhs, IntT rhs);
+template <typename IntT>
+BigInt<IntT> operator%(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
+#ifndef __cpp_impl_three_way_comparison
+template <typename IntT>
+bool operator<(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+bool operator>(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+bool operator<=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+bool operator>=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+bool operator==(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+template <typename IntT>
+bool operator!=(const BigInt<IntT>& lhs, const BigInt<IntT>& rhs);
+#endif
 
-// note: using is more modern than typedef
-using uint128_t = BigUInt<4u>;
-using uint256_t = BigUInt<8u>;
-using uint512_t = BigUInt<16u>;
-using uint1024_t = BigUInt<32u>;
-using uint2048_t = BigUInt<64u>;
-using uint4096_t = BigUInt<128u>;
-using uint8192_t = BigUInt<256u>;
+// explicit instanization
+extern template class BigInt<uint8_t>;
+extern template class BigInt<uint16_t>;
+extern template class BigInt<uint32_t>;
 
-// explicit instantiation
-extern template class BigUInt<0u>;
-extern template class BigUInt<1u>;
-extern template class BigUInt<2u>;
-extern template class BigUInt<4u>;
-extern template class BigUInt<8u>;
-extern template class BigUInt<16u>;
-extern template class BigUInt<32u>;
-extern template class BigUInt<64u>;
-extern template class BigUInt<128u>;
-extern template class BigUInt<256u>;
-// only a chain instantiated
-extern template BigUInt<4u>::operator BigUInt<8u>() const;
-extern template BigUInt<8u>::operator BigUInt<16u>() const;
-extern template BigUInt<16u>::operator BigUInt<32u>() const;
-extern template BigUInt<32u>::operator BigUInt<64u>() const;
-extern template BigUInt<64u>::operator BigUInt<128u>() const;
-extern template BigUInt<128u>::operator BigUInt<256u>() const;
-extern template BigUInt<256u>::operator BigUInt<128u>() const;
-extern template BigUInt<128u>::operator BigUInt<64u>() const;
-extern template BigUInt<64u>::operator BigUInt<32u>() const;
-extern template BigUInt<32u>::operator BigUInt<16u>() const;
-extern template BigUInt<16u>::operator BigUInt<8u>() const;
-extern template BigUInt<8u>::operator BigUInt<4u>() const;
+// explicit instanizaiton of functions
+extern template BigInt<uint8_t> operator&(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator|(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator^(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator<<(BigInt<uint8_t> lhs, size_t rhs);
+extern template BigInt<uint8_t> operator>>(BigInt<uint8_t> lhs, size_t rhs);
+extern template std::istream& operator>>(std::istream& in,
+                                         BigInt<uint8_t>& rhs);
+extern template std::ostream& operator<<(std::ostream& out,
+                                         const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator+(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator-(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs, uint8_t rhs);
+extern template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs, uint8_t rhs);
+extern template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs, uint8_t rhs);
+extern template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs,
+                                          const BigInt<uint8_t>& rhs);
+extern template BigInt<uint8_t> BigProduct(uint64_t a, uint64_t b);
+extern template BigInt<uint8_t> Factorial(uint64_t n);
+extern template BigInt<uint8_t> Power(const BigInt<uint8_t>& a, uint64_t p);
+extern template BigInt<uint8_t> PowMod(const BigInt<uint8_t>& a, uint64_t p,
+                                       const BigInt<uint8_t>& n);
+extern template BigInt<uint8_t> PowMod(const BigInt<uint8_t>& a,
+                                       const BigInt<uint8_t>& p,
+                                       const BigInt<uint8_t>& n);
+extern template BigInt<uint8_t> GcdBin(BigInt<uint8_t> a, BigInt<uint8_t> b);
+extern template BigInt<uint8_t> ExtGcdBin(BigInt<uint8_t> a, BigInt<uint8_t> b,
+                                          BigInt<uint8_t>* x,
+                                          BigInt<uint8_t>* y);
 
-template <unsigned LEN>
-struct BigUInt<LEN>::Instanization {
-    BigUInt<4u>* a4;
-    BigUInt<8u>* a8;
-    BigUInt<16u>* a16;
-    BigUInt<32u>* a32;
-    BigUInt<64u>* a64;
-    BigUInt<128u>* a128;
-    BigUInt<256u>* a256;
-    Instanization() {
-        *a4 + *a4;
-        *a4 - *a4;
-        *a4*(*a4);
-        *a4 / *a4;
-        // *a4 % *a4;
-        *a4&* a4;
-        *a4 | *a4;
-        *a4 ^ *a4;
-        *a4 * 1;
-        *a4 / 1;
-        *a4 << 1;
-        *a4 >> 1;
-        bool res;
-        res = *a4 < *a4;
-        res = *a4 > *a4;
-        res = *a4 <= *a4;
-        res = *a4 >= *a4;
-        res = *a4 == *a4;
-        res = *a4 != *a4;
-        *a8 + *a8;
-        *a8 - *a8;
-        *a8*(*a8);
-        *a8 / *a8;
-        // *a8 % *a8;
-        *a8&* a8;
-        *a8 | *a8;
-        *a8 ^ *a8;
-        *a8 * 1;
-        *a8 / 1;
-        *a8 << 1;
-        *a8 >> 1;
-        res = *a8 < *a8;
-        res = *a8 > *a8;
-        res = *a8 <= *a8;
-        res = *a8 >= *a8;
-        res = *a8 == *a8;
-        res = *a8 != *a8;
-        *a16 + *a16;
-        *a16 - *a16;
-        *a16*(*a16);
-        *a16 / *a16;
-        // *a16 % *a16;
-        *a16&* a16;
-        *a16 | *a16;
-        *a16 ^ *a16;
-        *a16 * 1;
-        *a16 / 1;
-        *a16 << 1;
-        *a16 >> 1;
-        res = *a16 < *a16;
-        res = *a16 > *a16;
-        res = *a16 <= *a16;
-        res = *a16 >= *a16;
-        res = *a16 == *a16;
-        res = *a16 != *a16;
-        *a32 + *a32;
-        *a32 - *a32;
-        *a32*(*a32);
-        *a32 / *a32;
-        // *a32 % *a32;
-        *a32&* a32;
-        *a32 | *a32;
-        *a32 ^ *a32;
-        *a32 * 1;
-        *a32 / 1;
-        *a32 << 1;
-        *a32 >> 1;
-        res = *a32 < *a32;
-        res = *a32 > *a32;
-        res = *a32 <= *a32;
-        res = *a32 >= *a32;
-        res = *a32 == *a32;
-        res = *a32 != *a32;
-        *a64 + *a64;
-        *a64 - *a64;
-        *a64*(*a64);
-        *a64 / *a64;
-        // *a64 % *a64;
-        *a64&* a64;
-        *a64 | *a64;
-        *a64 ^ *a64;
-        *a64 * 1;
-        *a64 / 1;
-        *a64 << 1;
-        *a64 >> 1;
-        res = *a64 < *a64;
-        res = *a64 > *a64;
-        res = *a64 <= *a64;
-        res = *a64 >= *a64;
-        res = *a64 == *a64;
-        res = *a64 != *a64;
-        *a128 + *a128;
-        *a128 - *a128;
-        *a128*(*a128);
-        *a128 / *a128;
-        // *a128 % *a128;
-        *a128&* a128;
-        *a128 | *a128;
-        *a128 ^ *a128;
-        *a128 * 1;
-        *a128 / 1;
-        *a128 << 1;
-        *a128 >> 1;
-        res = *a128 < *a128;
-        res = *a128 > *a128;
-        res = *a128 <= *a128;
-        res = *a128 >= *a128;
-        res = *a128 == *a128;
-        res = *a128 != *a128;
-        *a256 + *a256;
-        *a256 - *a256;
-        *a256*(*a256);
-        *a256 / *a256;
-        // *a256 % *a256;
-        *a256&* a256;
-        *a256 | *a256;
-        *a256 ^ *a256;
-        *a256 * 1;
-        *a256 / 1;
-        *a256 << 1;
-        *a256 >> 1;
-        res = *a256 < *a256;
-        res = *a256 > *a256;
-        res = *a256 <= *a256;
-        res = *a256 >= *a256;
-        res = *a256 == *a256;
-        res = *a256 != *a256;
-    }
-};
-}  // namespace cryp
-#endif /* ifndef BIGINT_HPP */
+extern template BigInt<uint16_t> operator&(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator|(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator^(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator<<(BigInt<uint16_t> lhs, size_t rhs);
+extern template BigInt<uint16_t> operator>>(BigInt<uint16_t> lhs, size_t rhs);
+extern template std::istream& operator>>(std::istream& in,
+                                         BigInt<uint16_t>& rhs);
+extern template std::ostream& operator<<(std::ostream& out,
+                                         const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator+(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator-(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs, uint16_t rhs);
+extern template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs, uint16_t rhs);
+extern template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs, uint16_t rhs);
+extern template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs,
+                                           const BigInt<uint16_t>& rhs);
+extern template BigInt<uint16_t> BigProduct(uint64_t a, uint64_t b);
+extern template BigInt<uint16_t> Factorial(uint64_t n);
+extern template BigInt<uint16_t> Power(const BigInt<uint16_t>& a, uint64_t p);
+extern template BigInt<uint16_t> PowMod(const BigInt<uint16_t>& a, uint64_t p,
+                                        const BigInt<uint16_t>& n);
+extern template BigInt<uint16_t> PowMod(const BigInt<uint16_t>& a,
+                                        const BigInt<uint16_t>& p,
+                                        const BigInt<uint16_t>& n);
+extern template BigInt<uint16_t> GcdBin(BigInt<uint16_t> a, BigInt<uint16_t> b);
+extern template BigInt<uint16_t> ExtGcdBin(BigInt<uint16_t> a,
+                                           BigInt<uint16_t> b,
+                                           BigInt<uint16_t>* x,
+                                           BigInt<uint16_t>* y);
+
+extern template BigInt<uint32_t> operator&(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator|(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator^(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator<<(BigInt<uint32_t> lhs, size_t rhs);
+extern template BigInt<uint32_t> operator>>(BigInt<uint32_t> lhs, size_t rhs);
+extern template std::istream& operator>>(std::istream& in,
+                                         BigInt<uint32_t>& rhs);
+extern template std::ostream& operator<<(std::ostream& out,
+                                         const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator+(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator-(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs, uint32_t rhs);
+extern template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs, uint32_t rhs);
+extern template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs, uint32_t rhs);
+extern template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs,
+                                           const BigInt<uint32_t>& rhs);
+extern template BigInt<uint32_t> BigProduct(uint64_t a, uint64_t b);
+extern template BigInt<uint32_t> Factorial(uint64_t n);
+extern template BigInt<uint32_t> Power(const BigInt<uint32_t>& a, uint64_t p);
+extern template BigInt<uint32_t> PowMod(const BigInt<uint32_t>& a, uint64_t p,
+                                        const BigInt<uint32_t>& n);
+extern template BigInt<uint32_t> PowMod(const BigInt<uint32_t>& a,
+                                        const BigInt<uint32_t>& p,
+                                        const BigInt<uint32_t>& n);
+extern template BigInt<uint32_t> GcdBin(BigInt<uint32_t> a, BigInt<uint32_t> b);
+extern template BigInt<uint32_t> ExtGcdBin(BigInt<uint32_t> a,
+                                           BigInt<uint32_t> b,
+                                           BigInt<uint32_t>* x,
+                                           BigInt<uint32_t>* y);
+#ifndef __cpp_impl_three_way_comparison
+extern template bool operator<(const BigInt<uint8_t>& lhs,
+                               const BigInt<uint8_t>& rhs);
+extern template bool operator>(const BigInt<uint8_t>& lhs,
+                               const BigInt<uint8_t>& rhs);
+extern template bool operator<=(const BigInt<uint8_t>& lhs,
+                                const BigInt<uint8_t>& rhs);
+extern template bool operator>=(const BigInt<uint8_t>& lhs,
+                                const BigInt<uint8_t>& rhs);
+extern template bool operator==(const BigInt<uint8_t>& lhs,
+                                const BigInt<uint8_t>& rhs);
+extern template bool operator!=(const BigInt<uint8_t>& lhs,
+                                const BigInt<uint8_t>& rhs);
+extern template bool operator<(const BigInt<uint16_t>& lhs,
+                               const BigInt<uint16_t>& rhs);
+extern template bool operator>(const BigInt<uint16_t>& lhs,
+                               const BigInt<uint16_t>& rhs);
+extern template bool operator<=(const BigInt<uint16_t>& lhs,
+                                const BigInt<uint16_t>& rhs);
+extern template bool operator>=(const BigInt<uint16_t>& lhs,
+                                const BigInt<uint16_t>& rhs);
+extern template bool operator==(const BigInt<uint16_t>& lhs,
+                                const BigInt<uint16_t>& rhs);
+extern template bool operator!=(const BigInt<uint16_t>& lhs,
+                                const BigInt<uint16_t>& rhs);
+extern template bool operator<(const BigInt<uint32_t>& lhs,
+                               const BigInt<uint32_t>& rhs);
+extern template bool operator>(const BigInt<uint32_t>& lhs,
+                               const BigInt<uint32_t>& rhs);
+extern template bool operator<=(const BigInt<uint32_t>& lhs,
+                                const BigInt<uint32_t>& rhs);
+extern template bool operator>=(const BigInt<uint32_t>& lhs,
+                                const BigInt<uint32_t>& rhs);
+extern template bool operator==(const BigInt<uint32_t>& lhs,
+                                const BigInt<uint32_t>& rhs);
+extern template bool operator!=(const BigInt<uint32_t>& lhs,
+                                const BigInt<uint32_t>& rhs);
+#endif
+}  // namespace calc
+#endif
