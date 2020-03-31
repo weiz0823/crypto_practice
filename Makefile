@@ -52,8 +52,8 @@ endif
 CXXFLAGS=-std=c++17
 TARGETS=
 RELEASE_TARGETS=base64 md5 sha1 sha2 sha3
-DEBUG_TARGETS=uint_basic_test
-BENCHMARK_TARGETS=bigmul_benchmark
+DEBUG_TARGETS=rsa_test
+BENCHMARK_TARGETS=
 
 
 ifeq ($(MODE),debug)
@@ -107,7 +107,7 @@ sha2: src/sha2_app.cpp compile/sha2.o
 	$(CXX) $(CXXFLAGS) compile/sha2_app.o compile/sha2.o \
 		-o sha2
 
-compile/sha3.o: src/sha3.cpp src/sha3.hpp src/uint128.hpp
+compile/sha3.o: src/sha3.cpp src/sha3.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha3.cpp -o compile/sha3.o
 
 sha3: src/sha3_app.cpp compile/sha3.o
@@ -119,6 +119,14 @@ compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigint_bit_arith.cpp \
 	src/bigint_io.cpp src/bigint_addsub.cpp src/bigint_mul.cpp \
 	src/bigint_divmod.cpp src/bigint_ext.cpp
 	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
+
+compile/rsa.o: src/rsa.cpp src/rsa.hpp src/bigint.hpp
+	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
+
+rsa_test: compile/rsa.o compile/bigint.o tests/rsa_test.cpp
+	$(CXX) $(CXXFLAGS) -c tests/rsa_test.cpp -o compile/rsa_test.o
+	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o compile/bigint.o\
+		-o rsa_test
 
 .PHONY: all clean clean-all
 clean:
