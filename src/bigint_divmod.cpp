@@ -1,4 +1,5 @@
 #include <cassert>
+
 #include "bigint.hpp"
 namespace calc {
 template <typename IntT>
@@ -66,7 +67,7 @@ BigInt<IntT>& BigInt<IntT>::operator%=(const BigInt& rhs) {
 template <typename IntT>
 BigInt<IntT>& BigInt<IntT>::BasicDivEq(IntT rhs, IntT* mod) {
     if (rhs == 0 || rhs == 1) return *this;
-    uint64_t t = 0;
+    uint64_t t = 0, r = 0;
     bool sign = Sign();
     if (sign) ToOpposite();
     IntT tmp_rhs = rhs, log_rhs = 0;
@@ -82,8 +83,9 @@ BigInt<IntT>& BigInt<IntT>::BasicDivEq(IntT rhs, IntT* mod) {
         *this >>= log_rhs;
     } else {
         for (size_t i = len_ - 1; i != size_t(-1); --i) {
-            t = ((t % rhs) << LIMB) | val_[i];
-            val_[i] = IntT(t / rhs);
+            t = ((t - r * rhs) << LIMB) | val_[i];
+            r = t / rhs;
+            val_[i] = IntT(r);
         }
     }
 
@@ -200,7 +202,7 @@ BigInt<IntT>& BigInt<IntT>::DivEqAlgA(const BigInt& rhs, BigInt* mod) {
                 --q;
                 *this += rhs << (i * LIMB);
             }
-            result.val_[i] = q;
+            result.val_[i] = static_cast<IntT>(q);
 
             u1 = (uint64_t(val_[i + pos]) << LIMB) | val_[i + pos - 1];
         }
@@ -221,7 +223,6 @@ BigInt<uint32_t>& BigInt<uint32_t>::DivEqAlgB(const BigInt& rhs, BigInt* mod) {
 }
 template <typename IntT>
 BigInt<IntT>& BigInt<IntT>::DivEqAlgB(const BigInt& rhs, BigInt* mod) {
-    if constexpr (LIMB > 21) return DivEqAlgA(rhs, mod);
     if (rhs == BigInt<IntT>(0)) return *this;
     if (rhs.Sign()) {
         DivEqAlgB(-rhs, mod);
@@ -261,7 +262,7 @@ BigInt<IntT>& BigInt<IntT>::DivEqAlgB(const BigInt& rhs, BigInt* mod) {
                 --q;
                 *this += rhs << (i * LIMB);
             }
-            result.val_[i] = q;
+            result.val_[i] = static_cast<IntT>(q);
             u = (uint64_t(val_[i + pos]) << (2 * LIMB)) |
                 (uint64_t(val_[i + pos - 1]) << LIMB) | val_[i + pos - 2];
         }

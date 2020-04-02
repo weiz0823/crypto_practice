@@ -115,7 +115,7 @@ BigInt<IntT>::operator bool() const {
 template <typename IntT>
 BigInt<IntT>::operator uint64_t() const {
     constexpr size_t seg = 64 / LIMB;
-    uint8_t i = len_ < seg ? len_ : seg;
+    size_t i = len_ < seg ? len_ : seg;
     uint64_t rv = 0;
     while (i > 0) rv = (rv << LIMB) | val_[--i];
     return rv;
@@ -317,19 +317,92 @@ int BigInt<IntT>::Compare(const BigInt& rhs) const {
 
 // private constructor
 template <typename IntT>
-BigInt<IntT>::BigInt(const IntT* data, size_t length) {
+template <typename _IntT>
+BigInt<IntT>::BigInt(const _IntT* data, size_t length) {
     cap_ = 1;
+    constexpr size_t limb_len = sizeof(_IntT) << 3;
     if (length == 0) {
         len_ = 1;
         val_ = new IntT[1];
         val_[0] = IntT(0);
-    } else {
-        if (length > MAX_CAP) length = MAX_CAP;
-        while (cap_ < length) cap_ <<= 1;
-        len_ = length;
+    } else if constexpr (limb_len > LIMB) {
+        size_t t = limb_len / LIMB;
+        len_ = length * t;
+        if (len_ > MAX_CAP) len_ = MAX_CAP;
+        while (cap_ < len_) cap_ <<= 1;
         val_ = new IntT[cap_];
-        std::copy(data, data + length, val_);
-        if (cap_ > length) std::fill(val_ + length, val_ + cap_, IntT(0));
+        size_t mov = 0;
+        size_t i;
+        switch (t) {
+            case 2:
+                for (i = 0; i < length; ++i) {
+                    val_[i << 1] = IntT(data[i]);
+                    val_[(i << 1) + 1] = IntT(data[i] >> LIMB);
+                }
+                break;
+            case 4:
+                for (i = 0; i < length; ++i) {
+                    mov = 0;
+                    for (uint8_t j = 0; j < 4; ++j) {
+                        val_[(i << 2) + j] = IntT(data[i] >> mov);
+                        mov += LIMB;
+                    }
+                }
+                break;
+        }
+        if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
+        ShrinkLen();
+    } else if constexpr (limb_len < LIMB) {
+        size_t t = LIMB / limb_len;
+        len_ = (length + t - 1) / t;
+        if (len_ > MAX_CAP) len_ = MAX_CAP;
+        while (cap_ < len_) cap_ <<= 1;
+        val_ = new IntT[cap_];
+        size_t mov = 0;
+        size_t i;
+        switch (t) {
+            case 2:
+                for (i = 0; i < len_ - 1; ++i) {
+                    val_[i] = IntT(IntT(data[(i << 1) + 1]) << limb_len) |
+                              data[i << 1];
+                }
+                if (!(length & 1)) {
+                    val_[len_ - 1] = IntT(IntT(data[length - 1]) << limb_len) |
+                                     data[length - 2];
+                } else if (data[length - 1] >> (limb_len - 1)) {
+                    val_[len_ - 1] =
+                        IntT(IntT(-1) << limb_len) | data[length - 1];
+                } else {
+                    val_[len_ - 1] = data[length - 1];
+                }
+                break;
+            case 4:
+                for (i = 0; i < len_ - 1; ++i) {
+                    mov = 0;
+                    val_[i] = 0;
+                    for (uint8_t j = 0; j < 4; ++j) {
+                        val_[i] |= IntT(data[(i << 2) + j]) << mov;
+                        mov += limb_len;
+                    }
+                }
+                mov = 0;
+                val_[i] = 0;
+                for (size_t j = i << 2; j < length; ++j) {
+                    val_[i] |= IntT(data[j]) << mov;
+                    mov += limb_len;
+                }
+                if (mov < LIMB && (data[length - 1] >> (limb_len - 1)))
+                    val_[i] |= IntT(-1) << mov;
+                break;
+        }
+        if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
+    } else {
+        len_ = length;
+        if (len_ > MAX_CAP) len_ = MAX_CAP;
+        while (cap_ < len_) cap_ <<= 1;
+        val_ = new IntT[cap_];
+        std::copy(data, data + len_, val_);
+        if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
     }
 }
 

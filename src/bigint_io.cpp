@@ -1,5 +1,6 @@
 #include <cassert>
 #include <string>
+
 #include "bigint.hpp"
 namespace calc {
 // constructors
@@ -135,11 +136,11 @@ std::string BigInt<IntT>::ToString(size_t base, bool uppercase,
     size_t tmp_base = base;
     size_t log_base = 0, offset;
     bool suffix_base = (showbase == 2);
-    IntT mask_init = IntT(((IntT(1) << log_base) - 1) << (LIMB - log_base));
     while (!(tmp_base & 1)) {
         ++log_base;
         tmp_base >>= 1;
     }
+    IntT mask_init = IntT(((IntT(1) << log_base) - 1) << (LIMB - log_base));
     std::string str;
     str.reserve(LIMB * len_ / log_base + 5);
     if (showbase == 1) {
@@ -213,17 +214,26 @@ std::string BigInt<IntT>::ToString(size_t base, bool uppercase,
             mask = mask_init >> cur_move;
         }
     } else {
+        uint32_t div_base = static_cast<uint32_t>(base);
+        uint32_t t = uint32_t(31 / std::log2(base));
+        for (i = 1; i < t; ++i) div_base *= base;
+        uint32_t mod, tmp_mod;
         std::string rev_str;
-        IntT mod;
+        BigInt<uint32_t> zero32(0);
         rev_str.reserve(LIMB * len_ / log_base);
-        BigInt<IntT> tmp_obj = *this;
+        BigInt<uint32_t> tmp_obj(val_, len_);
         if (tmp_obj.Sign()) tmp_obj.SetLen(tmp_obj.len_ + 1, false);
-        while (tmp_obj != zero) {
-            tmp_obj.BasicDivEq(static_cast<IntT>(base), &mod);
-            rev_str.append(1, charset[mod]);
+        while (tmp_obj != zero32) {
+            tmp_obj.BasicDivEq(div_base, &mod);
+            for (i = 0; i < t; ++i) {
+                tmp_mod = mod;
+                mod /= base;
+                rev_str.append(1, charset[tmp_mod - mod * base]);
+            }
         }
-        for (i = rev_str.length() - 1; i != size_t(-1); --i)
-            str.append(1, rev_str[i]);
+        i = rev_str.length() - 1;
+        while (rev_str[i] == '0') --i;
+        for (; i != size_t(-1); --i) str.append(1, rev_str[i]);
     }
     if (suffix_base && base != 10) {
         str.append(1, '_');
@@ -257,11 +267,11 @@ void BigInt<IntT>::Print(size_t base, bool uppercase, int showbase,
     size_t tmp_base = base;
     size_t log_base = 0, offset;
     bool suffix_base = (showbase == 2);
-    IntT mask_init = IntT(((IntT(1) << log_base) - 1) << (LIMB - log_base));
     while (!(tmp_base & 1)) {
         ++log_base;
         tmp_base >>= 1;
     }
+    IntT mask_init = IntT(((IntT(1) << log_base) - 1) << (LIMB - log_base));
     if (showbase == 1) {
         switch (base) {
             case 2:

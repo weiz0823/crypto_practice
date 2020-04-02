@@ -6,15 +6,17 @@
 #include <random>
 #include <utility>
 namespace calc {
-
 // IntT should be unsigned int,
 // and twice of length should be representable by basic type.
 // To avoid waste of time,
 // self-modifying functions should ensure the length is reset.
-// A shorter limb may cause faster add/sub,
-// but will harm the maximum length that a fast multiplication can handle with.
+// A longer limb may cause faster add/sub,
+// and multiplication can automatically cast it to a shorter limb
 template <typename IntT = uint16_t>
 class BigInt {
+    template <typename _IntT>
+    friend class BigInt;
+
    public:
     bool is_signed_ = true;
     // constructors
@@ -130,8 +132,10 @@ class BigInt {
     bool isProbablePrime() const;
 
    private:
+    char __padding__[7] = "7";
     // construct from raw data
-    explicit BigInt(const IntT* data, size_t length);
+    template <typename _IntT>
+    explicit BigInt(const _IntT* data, size_t length);
 
     // data
     static constexpr size_t LIMB = sizeof(IntT) << 3;
@@ -167,6 +171,9 @@ class BigInt {
     template <typename T>
     static void BitRevSort(T* a, size_t n);
     static void FFT(std::complex<double>* dest, size_t n, bool inv);
+    static void FFTExt(std::complex<long double>* dest, size_t n, bool inv);
+    // extended FFT: use long double
+    BigInt& FFTMulEqExt(const BigInt& rhs);
 
     // extended arithmetic
     template <typename _IntT>
