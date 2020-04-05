@@ -343,8 +343,8 @@ BigInt<IntT>& BigInt<IntT>::DivEqRecursive(const BigInt& rhs, BigInt* mod) {
         *this >>= mov;
         if (mod) *mod = std::move(*this);
         *this = std::move(result);
-        if (sign) ToOpposite();
     }
+    if (sign) ToOpposite();
     if (mod) {
         if (sign) mod->ToOpposite();
         mod->ShrinkLen();
@@ -387,8 +387,21 @@ BigInt<IntT> operator/(BigInt<IntT> lhs, const BigInt<IntT>& rhs) {
     return lhs /= rhs;
 }
 template <typename IntT>
-BigInt<IntT> operator%(BigInt<IntT> lhs, IntT rhs) {
-    return lhs %= rhs;
+IntT operator%(BigInt<IntT> lhs, IntT rhs) {
+    if (rhs == 0) return 0;
+    if (lhs.Sign()) return rhs - (-lhs) % rhs;
+    const uint64_t limb_mod = (1l << lhs.LIMB) % rhs;
+    uint64_t cur_mod = 1;
+    uint64_t tot = 0;
+    if (limb_mod == 0) {
+        tot = lhs.val_[0] % rhs;
+    } else {
+        for (size_t i = 0; i < lhs.len_; ++i) {
+            tot = (tot + cur_mod * lhs.val_[i]) % rhs;
+            cur_mod = cur_mod * limb_mod % rhs;
+        }
+    }
+    return IntT(tot);
 }
 template <typename IntT>
 BigInt<IntT> operator%(BigInt<IntT> lhs, const BigInt<IntT>& rhs) {

@@ -219,11 +219,10 @@ std::string BigInt<IntT>::ToString(size_t base, bool uppercase,
         for (i = 1; i < t; ++i) div_base *= base;
         uint32_t mod, tmp_mod;
         std::string rev_str;
-        BigInt<uint32_t> zero32(0);
         rev_str.reserve(LIMB * len_ / log_base);
         BigInt<uint32_t> tmp_obj(val_, len_);
         if (tmp_obj.Sign()) tmp_obj.SetLen(tmp_obj.len_ + 1, false);
-        while (tmp_obj != zero32) {
+        while (tmp_obj) {
             tmp_obj.BasicDivEq(div_base, &mod);
             for (i = 0; i < t; ++i) {
                 tmp_mod = mod;

@@ -6,6 +6,7 @@
 #include "bigint_ext.cpp"
 #include "bigint_io.cpp"
 #include "bigint_mul.cpp"
+#include "bigint_mul_deprecated.cpp"
 // If there are other cpp files, include them here,
 // because instanizaiton is only here.
 namespace calc {
@@ -23,8 +24,13 @@ BigInt<IntT>::BigInt(int value)
             val_[len_++] = IntT(value);
             value >>= LIMB;
         } while (value != 0 && value != -1);
-        if (len_ < cap_) std::fill(val_ + len_, val_ + cap_, IntT(0));
-        if (len_ == 0) len_ = 1;
+        if (len_ < cap_) {
+            std::fill(val_ + len_, val_ + cap_, IntT(0));
+            if (value >= 0)
+                val_[len_++] = IntT(0);
+            else
+                val_[len_++] = IntT(-1);
+        }
         ShrinkLen();
     }
 }
@@ -321,6 +327,9 @@ template <typename _IntT>
 BigInt<IntT>::BigInt(const _IntT* data, size_t length) {
     cap_ = 1;
     constexpr size_t limb_len = sizeof(_IntT) << 3;
+    constexpr uint16_t endian_test1 = 1 << 8;
+    // 0=little, 1=big
+    const bool endian = *reinterpret_cast<const uint8_t*>(&endian_test1);
     if (length == 0) {
         len_ = 1;
         val_ = new IntT[1];
@@ -333,22 +342,26 @@ BigInt<IntT>::BigInt(const _IntT* data, size_t length) {
         val_ = new IntT[cap_];
         size_t mov = 0;
         size_t i;
-        switch (t) {
-            case 2:
-                for (i = 0; i < length; ++i) {
-                    val_[i << 1] = IntT(data[i]);
-                    val_[(i << 1) + 1] = IntT(data[i] >> LIMB);
-                }
-                break;
-            case 4:
-                for (i = 0; i < length; ++i) {
-                    mov = 0;
-                    for (uint8_t j = 0; j < 4; ++j) {
-                        val_[(i << 2) + j] = IntT(data[i] >> mov);
-                        mov += LIMB;
+        if (endian) {
+            switch (t) {
+                case 2:
+                    for (i = 0; i < length; ++i) {
+                        val_[i << 1] = IntT(data[i]);
+                        val_[(i << 1) + 1] = IntT(data[i] >> LIMB);
                     }
-                }
-                break;
+                    break;
+                case 4:
+                    for (i = 0; i < length; ++i) {
+                        mov = 0;
+                        for (uint8_t j = 0; j < 4; ++j) {
+                            val_[(i << 2) + j] = IntT(data[i] >> mov);
+                            mov += LIMB;
+                        }
+                    }
+                    break;
+            }
+        } else {
+            std::memcpy(val_, data, length * sizeof(_IntT));
         }
         if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
         ShrinkLen();
@@ -360,40 +373,49 @@ BigInt<IntT>::BigInt(const _IntT* data, size_t length) {
         val_ = new IntT[cap_];
         size_t mov = 0;
         size_t i;
-        switch (t) {
-            case 2:
-                for (i = 0; i < len_ - 1; ++i) {
-                    val_[i] = IntT(IntT(data[(i << 1) + 1]) << limb_len) |
-                              data[i << 1];
-                }
-                if (!(length & 1)) {
-                    val_[len_ - 1] = IntT(IntT(data[length - 1]) << limb_len) |
-                                     data[length - 2];
-                } else if (data[length - 1] >> (limb_len - 1)) {
-                    val_[len_ - 1] =
-                        IntT(IntT(-1) << limb_len) | data[length - 1];
-                } else {
-                    val_[len_ - 1] = data[length - 1];
-                }
-                break;
-            case 4:
-                for (i = 0; i < len_ - 1; ++i) {
+        if (endian) {
+            switch (t) {
+                case 2:
+                    for (i = 0; i < len_ - 1; ++i) {
+                        val_[i] = IntT(IntT(data[(i << 1) + 1]) << limb_len) |
+                                  data[i << 1];
+                    }
+                    if (!(length & 1)) {
+                        val_[len_ - 1] =
+                            IntT(IntT(data[length - 1]) << limb_len) |
+                            data[length - 2];
+                    } else if (data[length - 1] >> (limb_len - 1)) {
+                        val_[len_ - 1] =
+                            IntT(IntT(-1) << limb_len) | data[length - 1];
+                    } else {
+                        val_[len_ - 1] = data[length - 1];
+                    }
+                    break;
+                case 4:
+                    for (i = 0; i < len_ - 1; ++i) {
+                        mov = 0;
+                        val_[i] = 0;
+                        for (uint8_t j = 0; j < 4; ++j) {
+                            val_[i] |= IntT(data[(i << 2) + j]) << mov;
+                            mov += limb_len;
+                        }
+                    }
                     mov = 0;
                     val_[i] = 0;
-                    for (uint8_t j = 0; j < 4; ++j) {
-                        val_[i] |= IntT(data[(i << 2) + j]) << mov;
+                    for (size_t j = i << 2; j < length; ++j) {
+                        val_[i] |= IntT(data[j]) << mov;
                         mov += limb_len;
                     }
-                }
-                mov = 0;
-                val_[i] = 0;
-                for (size_t j = i << 2; j < length; ++j) {
-                    val_[i] |= IntT(data[j]) << mov;
-                    mov += limb_len;
-                }
-                if (mov < LIMB && (data[length - 1] >> (limb_len - 1)))
-                    val_[i] |= IntT(-1) << mov;
-                break;
+                    if (mov < LIMB && (data[length - 1] >> (limb_len - 1)))
+                        val_[i] |= IntT(-1) << mov;
+                    break;
+            }
+        } else {
+            if (data[length - 1] >> (limb_len - 1))
+                val_[len_ - 1] = IntT(-1);
+            else
+                val_[len_ - 1] = IntT(0);
+            std::memcpy(val_, data, length * sizeof(_IntT));
         }
         if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
     } else {
@@ -404,6 +426,64 @@ BigInt<IntT>::BigInt(const _IntT* data, size_t length) {
         std::copy(data, data + len_, val_);
         if (cap_ > len_) std::fill(val_ + len_, val_ + cap_, IntT(0));
     }
+}
+template <typename IntT>
+template <typename _IntT>
+BigInt<IntT>& BigInt<IntT>::MoveFrom(BigInt<_IntT>&& rhs) {
+    constexpr uint16_t endian_test1 = 1 << 8;
+    // 0=little, 1=big
+    const bool endian = *reinterpret_cast<const uint8_t*>(&endian_test1);
+    if (endian) {
+        *this = BigInt<IntT>(rhs.val_, rhs.len_);
+        delete[] rhs.val_;
+        rhs.val_ = new _IntT[1];
+        rhs.cap_ = 1;
+        rhs.len_ = 1;
+        rhs.val_[0] = _IntT(0);
+    } else {
+        delete[] val_;
+        size_t t = rhs.len_ * rhs.LIMB % LIMB;
+        if (t) {
+            t = LIMB - t;
+            t >>= 3;
+            rhs.SetLen(rhs.len_ + t, true);
+        }
+        val_ = reinterpret_cast<IntT*>(rhs.val_);
+        cap_ = rhs.cap_ * rhs.LIMB / LIMB;
+        len_ = rhs.len_ * rhs.LIMB / LIMB;
+        rhs.val_ = new _IntT[1];
+        rhs.cap_ = 1;
+        rhs.len_ = 1;
+        rhs.val_[0] = _IntT(0);
+    }
+    return *this;
+}
+template <typename IntT>
+template <typename _IntT>
+const BigInt<IntT>& BigInt<IntT>::LinkAs(const BigInt<_IntT>& rhs) {
+    size_t t = rhs.len_ * rhs.LIMB % LIMB;
+    if (t) {
+        t = LIMB - t;
+        t >>= 3;
+        *this = BigInt<IntT>(rhs.val_, rhs.len_);
+    } else {
+        delete[] val_;
+        val_ = reinterpret_cast<IntT*>(rhs.val_);
+        cap_ = rhs.cap_ * rhs.LIMB / LIMB;
+        len_ = rhs.len_ * rhs.LIMB / LIMB;
+    }
+    return *this;
+}
+template <typename IntT>
+template <typename _IntT>
+BigInt<IntT>& BigInt<IntT>::DetachLink(const BigInt<_IntT>& rhs) {
+    if (val_ == reinterpret_cast<IntT*>(rhs.val_)) {
+        val_ = new IntT[1];
+        val_[0] = IntT(0);
+        len_ = 1;
+        cap_ = 1;
+    }
+    return *this;
 }
 
 // private functions
@@ -521,7 +601,7 @@ template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs,
 template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs, uint8_t rhs);
 template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs,
                                    const BigInt<uint8_t>& rhs);
-template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs, uint8_t rhs);
+template uint8_t operator%(BigInt<uint8_t> lhs, uint8_t rhs);
 template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs,
                                    const BigInt<uint8_t>& rhs);
 template BigInt<uint8_t> BigProduct(uint64_t a, uint64_t b);
@@ -557,7 +637,7 @@ template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs,
 template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs, uint16_t rhs);
 template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs,
                                     const BigInt<uint16_t>& rhs);
-template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs, uint16_t rhs);
+template uint16_t operator%(BigInt<uint16_t> lhs, uint16_t rhs);
 template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs,
                                     const BigInt<uint16_t>& rhs);
 template BigInt<uint16_t> BigProduct(uint64_t a, uint64_t b);
@@ -593,7 +673,7 @@ template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs,
 template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs, uint32_t rhs);
 template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs,
                                     const BigInt<uint32_t>& rhs);
-template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs, uint32_t rhs);
+template uint32_t operator%(BigInt<uint32_t> lhs, uint32_t rhs);
 template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs,
                                     const BigInt<uint32_t>& rhs);
 template BigInt<uint32_t> BigProduct(uint64_t a, uint64_t b);

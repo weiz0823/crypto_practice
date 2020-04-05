@@ -6,13 +6,14 @@
 #include <random>
 #include <utility>
 namespace calc {
+class CompMp;
 // IntT should be unsigned int,
 // and twice of length should be representable by basic type.
 // To avoid waste of time,
 // self-modifying functions should ensure the length is reset.
 // A longer limb may cause faster add/sub,
 // and multiplication can automatically cast it to a shorter limb
-template <typename IntT = uint16_t>
+template <typename IntT = uint32_t>
 class BigInt {
     template <typename _IntT>
     friend class BigInt;
@@ -98,17 +99,25 @@ class BigInt {
     BigInt& operator/=(const BigInt& rhs);
     BigInt& operator%=(IntT rhs);
     BigInt& operator%=(const BigInt& rhs);
+    BigInt& Square();
     BigInt& BasicDivEq(IntT rhs, IntT* mod = nullptr);
     BigInt& PlainMulEq(const BigInt& rhs);
-    BigInt& FFTMulEq(const BigInt& rhs);
+    BigInt& NFFTMulEq(const BigInt& rhs);
+    BigInt& MNTMulEq(const BigInt& rhs);
     BigInt& PlainDivEq(const BigInt& rhs, BigInt* mod = nullptr);
     BigInt& DivEqAlgA(const BigInt& rhs, BigInt* mod = nullptr);
     BigInt& DivEqAlgB(const BigInt& rhs, BigInt* mod = nullptr);
     BigInt& DivEqRecursive(const BigInt& rhs, BigInt* mod = nullptr);
+    // deprecated
+    BigInt& FFTMulEq(const BigInt& rhs);
+    BigInt& NMNTMulEq(const BigInt& rhs);
+    BigInt& MulEqKaratsuba(const BigInt& rhs);
+    BigInt& MulEqToomCook3(const BigInt& rhs);
 
     // non-modifying
     static BigInt PlainMul(BigInt lhs, const BigInt& rhs);
-    static BigInt FFTMul(BigInt lhs, const BigInt& rhs);
+    static BigInt NFFTMul(BigInt lhs, const BigInt& rhs);
+    static BigInt MNTMul(BigInt lhs, const BigInt& rhs);
     static BigInt BasicDiv(BigInt lhs, IntT rhs, IntT* mod = nullptr);
     static BigInt PlainDiv(BigInt lhs, const BigInt& rhs,
                            BigInt* mod = nullptr);
@@ -116,6 +125,11 @@ class BigInt {
     static BigInt DivAlgB(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
     static BigInt DivRecursive(BigInt lhs, const BigInt& rhs,
                                BigInt* mod = nullptr);
+    // deprecated
+    static BigInt FFTMul(BigInt lhs, const BigInt& rhs);
+    static BigInt NMNTMul(BigInt lhs, const BigInt& rhs);
+    static BigInt MulKaratsuba(BigInt lhs, const BigInt& rhs);
+    static BigInt MulToomCook3(BigInt lhs, const BigInt& rhs);
 
     // I/O
     // currently accept 2<=base<=36, other value will be 10
@@ -130,12 +144,19 @@ class BigInt {
     double log2() const;
     double log10() const;
     bool isProbablePrime() const;
+    BigInt& ToNextPrime();
 
    private:
     char __padding__[7] = "7";
     // construct from raw data
     template <typename _IntT>
     explicit BigInt(const _IntT* data, size_t length);
+    template <typename _IntT>
+    BigInt& MoveFrom(BigInt<_IntT>&& rhs);
+    template <typename _IntT>
+    const BigInt& LinkAs(const BigInt<_IntT>& rhs);
+    template <typename _IntT>
+    BigInt& DetachLink(const BigInt<_IntT>& rhs);
 
     // data
     static constexpr size_t LIMB = sizeof(IntT) << 3;
@@ -170,10 +191,14 @@ class BigInt {
     // FFT
     template <typename T>
     static void BitRevSort(T* a, size_t n);
-    static void FFT(std::complex<double>* dest, size_t n, bool inv);
+    static void NFFT(double* dest, size_t n, bool inv);
+    static void MNT(int64_t* dest, size_t n, bool inv);
     static void FFTExt(std::complex<long double>* dest, size_t n, bool inv);
     // extended FFT: use long double
     BigInt& FFTMulEqExt(const BigInt& rhs);
+    // deprecated
+    static void FFT(std::complex<double>* dest, size_t n, bool inv);
+    static void NMNT(CompMp* dest, size_t n, bool inv);
 
     // extended arithmetic
     template <typename _IntT>
@@ -184,6 +209,8 @@ class BigInt {
     template <typename _IntT>
     friend BigInt<_IntT> PowMod(const BigInt<_IntT>& a, uint64_t p,
                                 const BigInt<_IntT>& n);
+    template <typename _IntT>
+    friend _IntT operator%(BigInt<_IntT> lhs, _IntT rhs);
 };
 
 // specialization
@@ -240,7 +267,7 @@ BigInt<IntT> operator/(BigInt<IntT> lhs, IntT rhs);
 template <typename IntT>
 BigInt<IntT> operator/(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
 template <typename IntT>
-BigInt<IntT> operator%(BigInt<IntT> lhs, IntT rhs);
+IntT operator%(BigInt<IntT> lhs, IntT rhs);
 template <typename IntT>
 BigInt<IntT> operator%(BigInt<IntT> lhs, const BigInt<IntT>& rhs);
 #ifndef __cpp_impl_three_way_comparison
@@ -286,7 +313,7 @@ extern template BigInt<uint8_t> operator*(BigInt<uint8_t> lhs,
 extern template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs, uint8_t rhs);
 extern template BigInt<uint8_t> operator/(BigInt<uint8_t> lhs,
                                           const BigInt<uint8_t>& rhs);
-extern template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs, uint8_t rhs);
+extern template uint8_t operator%(BigInt<uint8_t> lhs, uint8_t rhs);
 extern template BigInt<uint8_t> operator%(BigInt<uint8_t> lhs,
                                           const BigInt<uint8_t>& rhs);
 extern template BigInt<uint8_t> BigProduct(uint64_t a, uint64_t b);
@@ -324,7 +351,7 @@ extern template BigInt<uint16_t> operator*(BigInt<uint16_t> lhs,
 extern template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs, uint16_t rhs);
 extern template BigInt<uint16_t> operator/(BigInt<uint16_t> lhs,
                                            const BigInt<uint16_t>& rhs);
-extern template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs, uint16_t rhs);
+extern template uint16_t operator%(BigInt<uint16_t> lhs, uint16_t rhs);
 extern template BigInt<uint16_t> operator%(BigInt<uint16_t> lhs,
                                            const BigInt<uint16_t>& rhs);
 extern template BigInt<uint16_t> BigProduct(uint64_t a, uint64_t b);
@@ -363,7 +390,7 @@ extern template BigInt<uint32_t> operator*(BigInt<uint32_t> lhs,
 extern template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs, uint32_t rhs);
 extern template BigInt<uint32_t> operator/(BigInt<uint32_t> lhs,
                                            const BigInt<uint32_t>& rhs);
-extern template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs, uint32_t rhs);
+extern template uint32_t operator%(BigInt<uint32_t> lhs, uint32_t rhs);
 extern template BigInt<uint32_t> operator%(BigInt<uint32_t> lhs,
                                            const BigInt<uint32_t>& rhs);
 extern template BigInt<uint32_t> BigProduct(uint64_t a, uint64_t b);

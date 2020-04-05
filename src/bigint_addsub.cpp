@@ -43,13 +43,16 @@ BigInt<IntT>& BigInt<IntT>::operator+=(const BigInt& rhs) {
                 overflow = 0;
         }
         // implicit alignment of len_
-        for (size_t i = rhs.len_; i < len_; ++i) {
-            val_[i] += overflow + rhs_empty_limb;
-            if (val_[i] < rhs_empty_limb ||
-                (overflow && val_[i] <= rhs_empty_limb))
-                overflow = 1;
-            else
-                overflow = 0;
+        if (rhs_sign && !overflow) {
+            for (size_t i = rhs.len_; i < len_; ++i) {
+                --val_[i];
+                if (val_[i] < rhs_empty_limb) break;
+            }
+        } else if (!rhs_sign && overflow) {
+            for (size_t i = rhs.len_; i < len_; ++i) {
+                ++val_[i];
+                if (val_[i]) break;
+            }
         }
     }
     // actual overflow is not indicated by variable $(overflow)
