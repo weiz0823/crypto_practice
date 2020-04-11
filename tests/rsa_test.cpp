@@ -33,5 +33,11 @@ int main() {
     end_time = std::chrono::high_resolution_clock::now();
     duration = end_time - start_time;
     std::printf("Time: %.3lfs\n", duration.count() / 1e9);
+    std::puts("");
+    start_time = std::chrono::high_resolution_clock::now();
+    r.KeyGen(8192);
+    end_time = std::chrono::high_resolution_clock::now();
+    duration = end_time - start_time;
+    std::printf("Time: %.3lfs\n", duration.count() / 1e9);
     return 0;
 }

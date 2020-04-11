@@ -4,29 +4,44 @@
 namespace calc {
 BigInt<uint128_t>& BigInt<uint128_t>::DivEq64(int64_t rhs, int64_t* remain) {
     // process as uint64
-    uint64_t* it = reinterpret_cast<uint64_t*>(end_);
+    auto it = end_;
     bool sign = Sign(), rhs_sign = rhs < 0;
     int64_t mod;
     if (sign) ToOpposite();
     if (rhs < 0) rhs = -rhs;
-    asm("xorq %%rdx, %%rdx" : : : "cc");
-bi128_dVEy_loop:
-    asm goto(R"(
-	leaq -16(%0), %0
+    asm("xorq %%rdx, %%rdx" : : : "rdx");
+    do {
+        --it;
+        asm(R"(
 	movq 8(%0), %%rax
 	divq %1
 	movq %%rax, 8(%0)
 	movq (%0), %%rax
 	divq %1
 	movq %%rax, (%0)
-	cmpq %0, %2
-	jne %l4
-	movq %%rdx, %3
 )"
-             :
-             : "r"(it), "g"(rhs), "g"(val_), "m"(mod)
-             : "cc", "memory", "rax", "rdx"
-             : bi128_dVEy_loop);
+            :
+            : "r"(it), "g"(rhs)
+            : "cc", "memory", "rax", "rdx");
+    } while (it > val_);
+    asm("movq %%rdx, %0" : "=m"(mod));
+    // bi128_dVEy_loop:
+    // asm goto(R"(
+    // leaq -16(%0), %0
+    // movq 8(%0), %%rax
+    // divq %1
+    // movq %%rax, 8(%0)
+    // movq (%0), %%rax
+    // divq %1
+    // movq %%rax, (%0)
+    // cmpq %0, %2
+    // jne %l4
+    // movq %%rdx, %3
+    // )"
+    // :
+    // : "r"(it), "g"(rhs), "g"(val_), "m"(mod)
+    // : "cc", "memory", "rax", "rdx"
+    // : bi128_dVEy_loop);
     if (sign != rhs_sign) ToOpposite();
     ShrinkLen();
     if (remain) {
@@ -90,19 +105,18 @@ BigInt<uint128_t>& BigInt<uint128_t>::DivEqD(const BigInt& rhs, BigInt* mod) {
     }
     rv.SetLen(rlen, false);
     uint64_t mov;
-    asm goto(R"(
-	bsrq 8(%0), %1
-	addq $64, %1
-	movq %1, %2
-	jnz %l3
-	bsrq (%0), %1
-	movq %1, %2
-)"
-             :
-             : "r"(testit), "r"(mov), "m"(mov)
-             : "cc", "memory"
-             : bi128_dVDER_nz);
-bi128_dVDER_nz:
+    if (*testit >> 64) {
+        asm("bsrq 8(%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(mov)
+            : "r"(testit)
+            : "cc", "memory", "r9");
+        mov += 64;
+    } else {
+        asm("bsrq (%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(mov)
+            : "r"(testit)
+            : "cc", "memory", "r9");
+    }
     mov = 127 - mov;
     // no real move
     uint128_t tmpv = *testit << mov;
@@ -121,7 +135,7 @@ bi128_dVDER_nz:
 
     // the loop
     if (mov) {
-        do {
+        while (rit > rterm) {
             --rit;
             --i;
 
@@ -147,10 +161,10 @@ bi128_dVDER_nz:
             u1l = t2 >> 64;
             u2 = t2;
             *rit |= DivDCore(rhs, v1, v2, u1h, u1l, u2, rit - rv.val_, false);
-        } while (rit > rterm);
+        }
     } else {
         // mov>=width is UB
-        do {
+        while (rit > rterm) {
             --rit;
             --i;
 
@@ -170,7 +184,7 @@ bi128_dVDER_nz:
             u1l = t2 >> 64;
             u2 = t2;
             *rit |= DivDCore(rhs, v1, v2, u1h, u1l, u2, rit - rv.val_, false);
-        } while (rit > rterm);
+        }
     }
     if (testit <= rhs.val_) {
         // one more loop without t3

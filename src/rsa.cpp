@@ -6,13 +6,18 @@ void RSA::KeyGen(int bit_len) {
     std::printf("Start RSA-%d key generation...\n", bit_len);
     std::puts("Begin looking for a prime p...");
     // half length, and 128 bits per limb
-    p.GenRandom(bit_len >> 8, 128);
+    int bitq = bit_len >> 8, bitr = (bit_len >> 1) & 127;
+    if (bitr)
+        ++bitq;
+    else
+        bitr = 128;
+    p.GenRandom(bitq, bitr);
     p.ToNextPrime();
-    std::printf("Got %d-bit prime p\n", bit_len >> 1);
+    std::printf("Got %d-bit (%.2lf) prime p\n", bit_len >> 1, p.log2());
     std::puts("Begin looking for a prime q...");
-    q.GenRandom(bit_len >> 8, 128);
+    q.GenRandom(bitq, bitr);
     q.ToNextPrime();
-    std::printf("Got %d-bit prime q\n", bit_len >> 1);
+    std::printf("Got %d-bit (%.2lf) prime q\n", bit_len >> 1, q.log2());
     n = p * q;
     m = calc::GcdBin(--p, --q);
     m = p * q / m;
