@@ -1,9 +1,9 @@
 #ifndef RSA_HPP
 #define RSA_HPP
-#include "bigint.hpp"
+#include "bigint64.hpp"
 
 namespace cryp {
-using BI = calc::BigInt<uint32_t>;
+using BI = calc::BigInt<calc::uint128_t>;
 class RSA {
     BI p, q, m, d;
     BI n, e = BI(65537);

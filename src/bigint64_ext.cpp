@@ -1,22 +1,6 @@
-#include <cmath>
-
-#include "bigint.hpp"
+#include "bigint64.hpp"
 namespace calc {
-// extended arithmetic
-template <typename IntT>
-double BigInt<IntT>::log2() const {
-    constexpr size_t seg = 64 / LIMB;
-    int64_t x = 0;
-    size_t i = len_;
-    while (i > 0 && i > len_ - seg) x = (x << LIMB) | val_[--i];
-    return std::log2(double(x)) + i * LIMB;
-}
-template <typename IntT>
-double BigInt<IntT>::log10() const {
-    return log2() / std::log2(10.0);
-}
-template <typename IntT>
-BigInt<IntT>& BigInt<IntT>::ToNextPrime() {
+BigInt<uint128_t>& BigInt<uint128_t>::ToNextPrime() {
     bool sign = Sign();
     if (sign) ToOpposite();
     if (!Parity()) ++*this;
@@ -64,24 +48,25 @@ BigInt<IntT>& BigInt<IntT>::ToNextPrime() {
         2203, 2207, 2209, 2213, 2221, 2227, 2231, 2237, 2239, 2243, 2249, 2251,
         2257, 2263, 2267, 2269, 2273, 2279, 2281, 2287, 2291, 2293, 2297, 2309,
         2311};
-    IntT b[TOT1] = {13,  17,  19,  23,  29,  31,  37,  41,  43,  47,
-                    53,  59,  61,  67,  71,  73,  79,  83,  89,  97,
-                    101, 103, 107, 109, 113, 127, 131, 137, 139, 149};
-    IntT c[TOT1];
-    BigInt<IntT> a[TOT2] = {
-        BigInt<IntT>(3),  BigInt<IntT>(5),  BigInt<IntT>(7),  BigInt<IntT>(11),
-        BigInt<IntT>(13), BigInt<IntT>(17), BigInt<IntT>(19), BigInt<IntT>(23),
-        BigInt<IntT>(29), BigInt<IntT>(31), BigInt<IntT>(37), BigInt<IntT>(41),
-        BigInt<IntT>(43), BigInt<IntT>(47), BigInt<IntT>(53)};
+    uint32_t b[TOT1] = {13,  17,  19,  23,  29,  31,  37,  41,  43,  47,
+                        53,  59,  61,  67,  71,  73,  79,  83,  89,  97,
+                        101, 103, 107, 109, 113, 127, 131, 137, 139, 149};
+    uint32_t c[TOT1];
+    BigInt<uint128_t> a[TOT2] = {
+        BigInt<uint128_t>(3),  BigInt<uint128_t>(5),  BigInt<uint128_t>(7),
+        BigInt<uint128_t>(11), BigInt<uint128_t>(13), BigInt<uint128_t>(17),
+        BigInt<uint128_t>(19), BigInt<uint128_t>(23), BigInt<uint128_t>(29),
+        BigInt<uint128_t>(31), BigInt<uint128_t>(37), BigInt<uint128_t>(41),
+        BigInt<uint128_t>(43), BigInt<uint128_t>(47), BigInt<uint128_t>(53)};
     uint32_t i, j, l, l0;
     size_t k, s;
-    BigInt<IntT> t, cond1, tmp;
-    BigInt<IntT> cond2(-1);
+    BigInt<uint128_t> t, cond1, tmp;
+    BigInt<uint128_t> cond2(-1);
     for (i = 0; i < TOT1; ++i) c[i] = *this % b[i];
-    uint64_t init_mod = static_cast<uint64_t>(*this % BigInt<IntT>(2310));
+    uint64_t init_mod = static_cast<uint64_t>(*this % 2310);
     for (l = 0; l < TOT3; ++l)
         if (init_mod <= d[l]) break;
-    if (init_mod < d[l]) *this += BigInt<IntT>(d[l] - init_mod);
+    if (init_mod < d[l]) *this += BigInt<uint128_t>(d[l] - init_mod);
     l0 = l;
     bool flag, composite_flag = true;
     while (composite_flag) {
@@ -102,9 +87,9 @@ BigInt<IntT>& BigInt<IntT>::ToNextPrime() {
                 }
         }
         if (l >= l0)
-            *this += BigInt<IntT>(d[l] - d[l0]);
+            *this += BigInt<uint128_t>(d[l] - d[l0]);
         else
-            *this += BigInt<IntT>(d[l] + 2310u - d[l0]);
+            *this += BigInt<uint128_t>(d[l] + 2310u - d[l0]);
         t = *this;
         cond1 = t >> 1;
         --t;
@@ -113,9 +98,9 @@ BigInt<IntT>& BigInt<IntT>::ToNextPrime() {
         for (auto& x : a) {
             tmp = PowMod(x, t, *this);
             if (tmp > cond1) tmp -= *this;
-            if (tmp == BigInt<IntT>(1) || tmp == cond2) continue;
+            if (tmp == BigInt<uint128_t>(1) || tmp == cond2) continue;
             for (k = 0; k < s - 1; ++k) {
-                tmp.Square();
+                tmp.SquareEq();
                 tmp %= *this;
                 if (tmp > cond1) tmp -= *this;
                 if (tmp == cond2) break;
@@ -136,44 +121,45 @@ BigInt<IntT>& BigInt<IntT>::ToNextPrime() {
     if (sign) ToOpposite();
     return *this;
 }
-template <typename IntT>
-bool BigInt<IntT>::isProbablePrime() const {
+bool BigInt<uint128_t>::isProbablePrime() const {
     if (Sign()) {
-        BigInt<IntT> tmp_obj = -*this;
+        BigInt<uint128_t> tmp_obj = -*this;
         return tmp_obj.isProbablePrime();
     }
     constexpr uint8_t TOT1 = 24, TOT2 = 15;
     // Miller-Rabin primality test
-    BigInt<IntT> a[TOT2] = {
-        BigInt<IntT>(3),  BigInt<IntT>(5),  BigInt<IntT>(7),  BigInt<IntT>(11),
-        BigInt<IntT>(13), BigInt<IntT>(17), BigInt<IntT>(19), BigInt<IntT>(23),
-        BigInt<IntT>(29), BigInt<IntT>(31), BigInt<IntT>(37), BigInt<IntT>(41),
-        BigInt<IntT>(43), BigInt<IntT>(47), BigInt<IntT>(53)};
-    IntT b[TOT1] = {3,  5,  7,  11, 13, 17, 19, 23, 29, 31, 37, 41,
-                    43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
-    int cmp = Compare(BigInt<IntT>(2));
+    BigInt<uint128_t> a[TOT2] = {
+        BigInt<uint128_t>(3),  BigInt<uint128_t>(5),  BigInt<uint128_t>(7),
+        BigInt<uint128_t>(11), BigInt<uint128_t>(13), BigInt<uint128_t>(17),
+        BigInt<uint128_t>(19), BigInt<uint128_t>(23), BigInt<uint128_t>(29),
+        BigInt<uint128_t>(31), BigInt<uint128_t>(37), BigInt<uint128_t>(41),
+        BigInt<uint128_t>(43), BigInt<uint128_t>(47), BigInt<uint128_t>(53)};
+    uint128_t b[TOT1] = {3,  5,  7,  11, 13, 17, 19, 23, 29, 31, 37, 41,
+                         43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+    int cmp = Compare(BigInt<uint128_t>(2));
     if (cmp < 0)
         return false;
     else if (cmp == 0)
         return true;
     else if (!Parity())
         return false;
+    // first test small divisors
     for (auto x : b)
         if (!(*this % x)) return false;
     size_t i;
-    BigInt<IntT> t(*this);
-    BigInt<IntT> cond1(t >> 1);
+    BigInt<uint128_t> t(*this);
+    BigInt<uint128_t> cond1(t >> 1);
     --t;
-    BigInt<IntT> cond2(-1);
+    BigInt<uint128_t> cond2(-1);
     size_t s = t.TrailingZero();
     t >>= s;
-    BigInt<IntT> tmp;
+    BigInt<uint128_t> tmp;
     for (auto& x : a) {
         tmp = PowMod(x, t, *this);
         if (tmp > cond1) tmp -= *this;
-        if (tmp == BigInt<IntT>(1) || tmp == cond2) continue;
+        if (tmp == BigInt<uint128_t>(1) || tmp == cond2) continue;
         for (i = 0; i < s - 1; ++i) {
-            tmp.Square();
+            tmp.SquareEq();
             tmp %= *this;
             if (tmp > cond1) tmp -= *this;
             if (tmp == cond2) break;
@@ -183,23 +169,20 @@ bool BigInt<IntT>::isProbablePrime() const {
     return true;
 }
 
-template <typename IntT>
-BigInt<IntT> BigProduct(uint64_t a, uint64_t b) {
+BigInt<uint128_t> BigProduct(uint64_t a, uint64_t b) {
     if (a > b)
-        return BigInt<IntT>(1);
+        return BigInt<uint128_t>(1);
     else if (a == b)
-        return BigInt<IntT>(a);
+        return BigInt<uint128_t>(a);
     else if (a + 1 == b)
-        return BigInt<IntT>(a) * BigInt<IntT>(b);
+        return BigInt<uint128_t>(a) * BigInt<uint128_t>(b);
     else if (b - a < 8)
-        return BigProduct<IntT>(a, a / 2 + b / 2) *
-               BigProduct<IntT>(a / 2 + b / 2 + 1, b);
+        return BigProduct(a, a / 2 + b / 2) * BigProduct(a / 2 + b / 2 + 1, b);
     else
-        return BigProduct<IntT>(a, a / 4 + b / 4 * 3) *
-               BigProduct<IntT>(a / 4 + b / 4 * 3 + 1, b);
+        return BigProduct(a, a / 4 + b / 4 * 3) *
+               BigProduct(a / 4 + b / 4 * 3 + 1, b);
 }
-template <typename IntT>
-BigInt<IntT> Factorial(uint64_t n) {
+BigInt<uint128_t> Factorial(uint64_t n) {
     constexpr uint64_t fac[20] = {1ul,
                                   1ul,
                                   2ul,
@@ -221,63 +204,60 @@ BigInt<IntT> Factorial(uint64_t n) {
                                   6402373705728000ul,
                                   121645100408832000ul};
     if (n < 20) {
-        return BigInt<IntT>(fac[n]);
+        return BigInt<uint128_t>(fac[n]);
     } else {
-        return BigInt<IntT>(fac[19]) * BigProduct<IntT>(20, n);
+        return BigInt<uint128_t>(fac[19]) * BigProduct(20, n);
     }
 }
-template <typename IntT>
-BigInt<IntT> Power(const BigInt<IntT>& a, uint64_t p) {
-    if (!p) return BigInt<IntT>(1);
+BigInt<uint128_t> Power(const BigInt<uint128_t>& a, uint64_t p) {
+    if (!p) return BigInt<uint128_t>(1);
     uint64_t mask = 1ul << 63ul;
     for (; mask; mask >>= 1)
         if (p & mask) break;
-    BigInt<IntT> result(a);
+    BigInt<uint128_t> result(a);
     mask >>= 1;
     for (; mask; mask >>= 1) {
-        result.Square();
+        result.SquareEq();
         if (p & mask) result *= a;
     }
     return result;
 }
-template <typename IntT>
-BigInt<IntT> PowMod(const BigInt<IntT>& a, const BigInt<IntT>& p,
-                    const BigInt<IntT>& n) {
-    if (p.Sign()) return BigInt<IntT>(0);
-    if (!p) return BigInt<IntT>(1);
+BigInt<uint128_t> PowMod(const BigInt<uint128_t>& a, const BigInt<uint128_t>& p,
+                         const BigInt<uint128_t>& n) {
+    if (p.Sign()) return BigInt<uint128_t>(0);
+    if (!p) return BigInt<uint128_t>(1);
     if (a > n) return PowMod(a % n, p, n);
-    IntT mask = IntT(1) << (a.LIMB - 1);
+    uint128_t mask = uint128_t(1) << (a.LIMB - 1);
     for (; mask; mask >>= 1)
         if (p.val_[p.len_ - 1] & mask) break;
-    BigInt<IntT> result(1);
+    BigInt<uint128_t> result(1);
     for (size_t i = p.len_ - 1; i != size_t(-1); --i) {
         for (; mask; mask >>= 1) {
-            result.Square();
+            result.SquareEq();
             if (p.val_[i] & mask) result *= a;
             if (result.len_ > n.len_) result %= n;
         }
-        mask = IntT(1) << (a.LIMB - 1);
+        mask = uint128_t(1) << (a.LIMB - 1);
     }
     return std::move(result) % n;
 }
-template <typename IntT>
-BigInt<IntT> PowMod(const BigInt<IntT>& a, uint64_t p, const BigInt<IntT>& n) {
-    if (!p) return BigInt<IntT>(1);
+BigInt<uint128_t> PowMod(const BigInt<uint128_t>& a, uint64_t p,
+                         const BigInt<uint128_t>& n) {
+    if (!p) return BigInt<uint128_t>(1);
     if (a > n) return PowMod(a % n, p, n);
     uint64_t mask = 1ul << 63ul;
     for (; mask; mask >>= 1)
         if (p & mask) break;
-    BigInt<IntT> result(a);
+    BigInt<uint128_t> result(a);
     mask >>= 1;
     for (; mask; mask >>= 1) {
-        result.Square();
+        result.SquareEq();
         if (p & mask) result *= a;
         if (result.len_ > n.len_) result %= n;
     }
     return std::move(result) % n;
 }
-template <typename IntT>
-BigInt<IntT> GcdBin(BigInt<IntT> a, BigInt<IntT> b) {
+BigInt<uint128_t> GcdBin(BigInt<uint128_t> a, BigInt<uint128_t> b) {
     a.ToAbsolute();
     b.ToAbsolute();
     size_t q1 = a.TrailingZero(), q2 = b.TrailingZero();
@@ -297,13 +277,12 @@ BigInt<IntT> GcdBin(BigInt<IntT> a, BigInt<IntT> b) {
         }
     }
 }
-template <typename IntT>
-BigInt<IntT> ExtGcdBin(BigInt<IntT> a, BigInt<IntT> b, BigInt<IntT>* x,
-                       BigInt<IntT>* y) {
+BigInt<uint128_t> ExtGcdBin(BigInt<uint128_t> a, BigInt<uint128_t> b,
+                            BigInt<uint128_t>* x, BigInt<uint128_t>* y) {
     a.ToAbsolute();
     b.ToAbsolute();
     // p*a0+q*b0=a, r*a0+s*b0=b
-    BigInt<IntT> p(1), q(0), r(0), s(1);
+    BigInt<uint128_t> p(1), q(0), r(0), s(1);
     size_t t0 = std::min(a.TrailingZero(), b.TrailingZero());
     size_t t1, t2;
     bool swapped = false;
@@ -314,7 +293,7 @@ BigInt<IntT> ExtGcdBin(BigInt<IntT> a, BigInt<IntT> b, BigInt<IntT>* x,
         std::swap(a, b);
         swapped = true;
     }
-    BigInt<IntT> a0(a), b0(b);
+    BigInt<uint128_t> a0(a), b0(b);
     if (!b.Parity()) {
         r += b0;
         s -= a0;

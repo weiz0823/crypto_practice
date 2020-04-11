@@ -1,6 +1,6 @@
 #include "sha2.hpp"
 #include <cstring>
-#include "uint128.hpp"
+typedef __uint128_t uint128_t;
 
 namespace cryp {
 

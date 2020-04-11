@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "sha1.hpp"
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     uint8_t a[20];
@@ -15,7 +16,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         b = cryp::SHA1::Calculate(stdin, a);
     }
 
-    std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+    std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                 b >> 3);
     std::printf("SHA-1: ");
     for (auto x : a) std::printf("%02hhx", x);

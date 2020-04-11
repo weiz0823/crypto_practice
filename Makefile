@@ -99,7 +99,7 @@ sha1: src/sha1_app.cpp compile/sha1.o
 	$(CXX) $(CXXFLAGS) compile/sha1_app.o compile/sha1.o \
 		-o sha1
 
-compile/sha2.o: src/sha2.cpp src/sha2.hpp src/uint128.hpp
+compile/sha2.o: src/sha2.cpp src/sha2.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha2.cpp -o compile/sha2.o
 
 sha2: src/sha2_app.cpp compile/sha2.o
@@ -115,17 +115,18 @@ sha3: src/sha3_app.cpp compile/sha3.o
 	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o \
 		-o sha3
 
-compile/bigint.o: src/bigint.cpp src/bigint.hpp src/bigint_bit_arith.cpp \
-	src/bigint_io.cpp src/bigint_addsub.cpp src/bigint_mul.cpp \
-	src/bigint_divmod.cpp src/bigint_ext.cpp
-	$(CXX) $(CXXFLAGS) -c src/bigint.cpp -o compile/bigint.o
+compile/bigint64.o: src/bigint64.cpp src/bigint64.hpp src/bigint64_bit.cpp \
+	src/bigint64_io.cpp src/bigint64_add.cpp src/bigint64_basic.cpp \
+	src/bigint64_mul.cpp src/bigint64_div.cpp src/bigint64_compare.cpp \
+	src/bigint64_ext.cpp
+	$(CXX) $(CXXFLAGS) -c src/bigint64.cpp -o compile/bigint64.o
 
-compile/rsa.o: src/rsa.cpp src/rsa.hpp src/bigint.hpp
+compile/rsa.o: src/rsa.cpp src/rsa.hpp src/bigint64.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
 
-rsa_test: compile/rsa.o compile/bigint.o tests/rsa_test.cpp
+rsa_test: compile/rsa.o compile/bigint64.o tests/rsa_test.cpp
 	$(CXX) $(CXXFLAGS) -c tests/rsa_test.cpp -o compile/rsa_test.o
-	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o compile/bigint.o\
+	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o compile/bigint64.o \
 		-o rsa_test
 
 .PHONY: all clean clean-all

@@ -15,7 +15,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         b = cryp::MD5::Calculate(stdin, a);
     }
 
-    std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+    std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                 b >> 3);
     std::printf("MD5: ");
     for (auto x : a) std::printf("%02hhx", x);

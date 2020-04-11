@@ -1,5 +1,6 @@
 #include <cstring>
 #include <iostream>
+
 #include "sha2.hpp"
 void PrintHelp([[maybe_unused]] int argc, char* argv[]) {
     std::fprintf(stderr,
@@ -31,7 +32,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     }
     if (!std::strcmp(argv[1], "sha224")) {
         b = cryp::SHA2::SHA224(f, a);
-        std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+        std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-224: ");
         for (uint8_t i = 0; i < 28; ++i) std::printf("%02hhx", a[i]);
@@ -64,7 +65,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
     } else if (!std::strcmp(argv[1], "sha256")) {
         b = cryp::SHA2::SHA256(f, a);
-        std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+        std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-256: ");
         for (uint8_t i = 0; i < 32; ++i) std::printf("%02hhx", a[i]);
@@ -97,7 +98,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
     } else if (!std::strcmp(argv[1], "sha384")) {
         b = cryp::SHA2::SHA384(f, a);
-        std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+        std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-384: ");
         for (uint8_t i = 0; i < 48; ++i) std::printf("%02hhx", a[i]);
@@ -130,7 +131,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
     } else if (!std::strcmp(argv[1], "sha512")) {
         b = cryp::SHA2::SHA512(f, a);
-        std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+        std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-512: ");
         for (auto x : a) std::printf("%02hhx", x);
@@ -181,7 +182,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
                 stderr);
         }
         b = cryp::SHA2::SHA512t(f, a, t);
-        std::printf("Message length in bits (mod 2^64): %lu (%lu bytes)\n", b,
+        std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-512/%u: ", t);
         for (uint8_t i = 0; i < hash_len; ++i) std::printf("%02hhx", a[i]);
