@@ -41,6 +41,7 @@ class BigInt<uint128_t> {
     // bigint64_div.cpp
     uint64_t DivDCore(const BigInt& rhs, uint64_t v1, uint64_t v2, uint64_t u1h,
                       uint64_t u1l, uint64_t u2, uint64_t bias, bool half_more);
+    void DivRNormal(const BigInt& rhs, BigInt* mod = nullptr);
 
     // bigint64_mul.cpp
     BigInt& RMNTMulEqGiven(const int64_t* src, uint64_t n, uint64_t rlen);
@@ -68,6 +69,7 @@ class BigInt<uint128_t> {
     double log2() const;
     double log10() const;
     uint64_t TrailingZero() const;
+    uint64_t BitLen() const;
 
     // bigint64_bit.cpp
     BigInt& ToBitInv();
@@ -122,6 +124,8 @@ class BigInt<uint128_t> {
     BigInt& operator/=(const BigInt& rhs);
     BigInt& operator%=(const BigInt& rhs);
     BigInt& DivEq(const BigInt& rhs, BigInt* mod = nullptr);
+    // recursive
+    BigInt& DivEqR(const BigInt& rhs, BigInt* mod = nullptr);
 
     // bigint64_mul.cpp
     BigInt& operator*=(uint64_t rhs);
@@ -152,6 +156,7 @@ class BigInt<uint128_t> {
     static BigInt Div(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
     static BigInt Square(BigInt lhs);
     static BigInt RMNTMulUB(BigInt lhs, const BigInt& rhs);
+    static BigInt DivR(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
 };
 // bigint64_io.cpp
 std::ostream& operator<<(std::ostream& out, const BigInt<uint128_t>& rhs);

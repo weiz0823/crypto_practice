@@ -1,5 +1,3 @@
-#include <cassert>
-
 #include "bigint64.hpp"
 namespace calc {
 BigInt<uint128_t>& BigInt<uint128_t>::DivEq64(int64_t rhs, int64_t* remain) {
@@ -110,14 +108,14 @@ BigInt<uint128_t>& BigInt<uint128_t>::DivEqD(const BigInt& rhs, BigInt* mod) {
             : "=m"(mov)
             : "r"(testit)
             : "cc", "memory", "r9");
-        mov += 64;
+        mov = 63 - mov;
     } else {
         asm("bsrq (%1), %%r9\n\tmovq %%r9, %0"
             : "=m"(mov)
             : "r"(testit)
             : "cc", "memory", "r9");
+        mov = 127 - mov;
     }
-    mov = 127 - mov;
     // no real move
     uint128_t tmpv = *testit << mov;
     if (testit > rhs.val_ && mov) tmpv |= *(testit - 1) >> (128 - mov);
@@ -230,7 +228,13 @@ BigInt<uint128_t>& BigInt<uint128_t>::operator/=(int64_t rhs) {
     return DivEq64(rhs, nullptr);
 }
 BigInt<uint128_t>& BigInt<uint128_t>::DivEq(const BigInt& rhs, BigInt* mod) {
-    return DivEqD(rhs, mod);
+    // if (rhs.len_ > 16 && len_ * 2 > rhs.len_ * 3 && len_ < rhs.len_ * 3)
+    if (rhs.len_ > 16 && len_ * 2 > rhs.len_ * 3)
+        return DivEqR(rhs, mod);
+    else if (rhs.len_ < 512 || len_ < rhs.len_ + 512)
+        return DivEqD(rhs, mod);
+    else
+        return DivEqR(rhs, mod);
 }
 BigInt<uint128_t>& BigInt<uint128_t>::operator/=(const BigInt& rhs) {
     return DivEq(rhs, nullptr);
@@ -250,6 +254,116 @@ BigInt<uint128_t>& BigInt<uint128_t>::operator%=(int64_t rhs) {
         *val_ <<= 64;
     }
     *val_ |= mod;
+    return *this;
+}
+void BigInt<uint128_t>::DivRNormal(const BigInt& rhs, BigInt* mod) {
+    // normalized: all positive, quotinent not zero,
+    // bitlen of rhs divisible by 256
+    auto cit = rhs.end_ - 1;
+    while (!*cit) --cit;
+    // uint64_t t = (cit - rhs.val_ + 1) >> 1;
+    uint64_t t = (cit - rhs.val_ + 1);
+    t >>= 1;
+    uint64_t k = (len_ + t - 1) / t;
+    BigInt<uint128_t> u, v;
+    BigInt<uint128_t> rv;
+    cit = rhs.val_ + t;
+    v.SetLen(rhs.end_ - cit, false);
+    std::copy(cit, rhs.end_, v.val_);
+    auto term = end_;
+    uint64_t i = k - 1;
+    auto it = val_ + i * t;
+    u.SetLen(term - it, false);
+    std::copy(it, term, u.val_);
+    u /= v;
+    BiasedSubEq(rhs * u, (i - 1) * t, false);
+    if (Sign()) {
+        --u;
+        BiasedAddEq(rhs, (i - 1) * t, false);
+    }
+    if (Sign()) {
+        --u;
+        BiasedAddEq(rhs, (i - 1) * t, false);
+    }
+    rv.BiasedAddEq(u, (i - 1) * t, false);
+    term = end_;
+    for (--i; i > 0; --i) {
+        it = val_ + i * t;
+        u.SetLen(term - it + 1, false);
+        *(u.end_ - 1) = 0;
+        std::copy(it, term, u.val_);
+        u.ShrinkLen();
+        u /= v;
+        BiasedSubEq(rhs * u, (i - 1) * t, false);
+        if (Sign()) {
+            --u;
+            BiasedAddEq(rhs, (i - 1) * t, false);
+        }
+        if (Sign()) {
+            --u;
+            BiasedAddEq(rhs, (i - 1) * t, false);
+        }
+        rv.BiasedAddEq(u, (i - 1) * t, false);
+        term = val_ + (i + 1) * t;
+    }
+    if (mod) *mod = std::move(*this);
+    *this = std::move(rv);
+}
+BigInt<uint128_t>& BigInt<uint128_t>::DivEqR(const BigInt& rhs, BigInt* mod) {
+    if (!rhs) return *this;
+    if (rhs.Sign()) {
+        DivEqD(-rhs, mod);
+        return ToOpposite();
+    }
+    bool sign = Sign();
+    if (sign) ToOpposite();
+    if (*this < rhs) {
+        if (mod) {
+            if (sign) ToOpposite();
+            *mod = std::move(*this);
+        }
+        SetLen(0, false);
+        return *this;
+    }
+    auto testit = rhs.end_ - 1;
+    while (!*testit) {
+        --testit;
+    }
+    if (testit <= rhs.val_ + 2) {
+        DivEqD(rhs, mod);
+    } else {
+        uint64_t mov;
+        if (*testit >> 64) {
+            asm("bsrq 8(%1), %%r9\n\tmovq %%r9, %0"
+                : "=m"(mov)
+                : "r"(testit)
+                : "cc", "memory", "r9");
+            mov = 63 - mov;
+        } else {
+            asm("bsrq (%1), %%r9\n\tmovq %%r9, %0"
+                : "=m"(mov)
+                : "r"(testit)
+                : "cc", "memory", "r9");
+            mov = 127 - mov;
+        }
+        if (!((testit - rhs.val_) & 1)) mov += 128;
+        // normalized
+        if (mov) {
+            *this <<= mov;
+            DivRNormal(rhs << mov, mod);
+            if (mod) *mod >>= mov;
+        } else {
+            DivRNormal(rhs, mod);
+        }
+    }
+    if (sign) {
+        ToOpposite();
+        if (mod) {
+            mod->ToOpposite();
+            mod->ShrinkLen();
+        }
+    }
+    ShrinkLen();
     return *this;
 }
 }  // namespace calc

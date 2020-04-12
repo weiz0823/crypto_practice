@@ -91,19 +91,38 @@ uint64_t BigInt<uint128_t>::TrailingZero() const {
     while (!*it && it != end_) ++it;
     if (it == end_) return 1;  // is zero, is even number
     uint64_t j;
-    asm goto(R"(
-	bsfq (%0), %1
-	movq %1, %2
-	jnz %l3
-	bsfq 8(%0), %1
-	addq $64, %1
-	movq %1, %2
-)"
-             :
-             : "r"(it), "r"(j), "m"(j)
-             : "cc", "memory"
-             : bi128_Trail_ret);
-bi128_Trail_ret:
+    if (*it << 64) {
+        asm("bsfq (%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(j)
+            : "r"(it)
+            : "cc", "memory", "r9");
+    } else {
+        asm("bsfq 8(%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(j)
+            : "r"(it)
+            : "cc", "memory", "r9");
+        j += 64;
+    }
+    return ((it - val_) << LOGLIMB) + j;
+}
+uint64_t BigInt<uint128_t>::BitLen() const {
+    auto it = end_ - 1;
+    while (it >= val_ && !*it) --it;
+    if (it < val_) return 0;  // is zero
+    uint64_t j;
+    if (*it >> 64) {
+        asm("bsrq 8(%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(j)
+            : "r"(it)
+            : "cc", "memory", "r9");
+        j += 65;
+    } else {
+        asm("bsrq (%1), %%r9\n\tmovq %%r9, %0"
+            : "=m"(j)
+            : "r"(it)
+            : "cc", "memory", "r9");
+        ++j;
+    }
     return ((it - val_) << LOGLIMB) + j;
 }
 void BigInt<uint128_t>::SetLen(uint64_t new_len, bool preserve_sign) {

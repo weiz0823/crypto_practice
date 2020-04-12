@@ -502,7 +502,7 @@ BigInt<uint128_t>& BigInt<uint128_t>::PlainMulEq(const BigInt& rhs) {
     return *this;
 }
 BigInt<uint128_t>& BigInt<uint128_t>::operator*=(const BigInt& rhs) {
-    if (rhs.len_ <= 2 || len_ <= 2) {
+    if (rhs.len_ <= 16 || len_ <= 16) {
         return PlainMulEq(rhs);
     } else if ((len_ << 2) < rhs.len_ || (rhs.len_ << 2) < len_) {
         return RMNTMulEqUB(rhs);

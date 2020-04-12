@@ -111,4 +111,8 @@ BigInt<uint128_t> BigInt<uint128_t>::Square(BigInt lhs) {
 BigInt<uint128_t> BigInt<uint128_t>::RMNTMulUB(BigInt lhs, const BigInt& rhs) {
     return lhs.RMNTMulEqUB(rhs);
 }
+BigInt<uint128_t> BigInt<uint128_t>::DivR(BigInt lhs, const BigInt& rhs,
+                                          BigInt* mod) {
+    return lhs.DivEqR(rhs, mod);
+}
 }  // namespace calc
