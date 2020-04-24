@@ -48,6 +48,9 @@ BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
         return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
     }
 }
+BI RSAPrvKey::SignaturePrimitive(const BI& msg) {
+    return DecryptPrimitiveCRT(msg);
+}
 
 RSAPubKey::RSAPubKey(const RSAPrvKey& prv) : n_(prv.n_) {
     // e * d = 1 (mod m)
@@ -71,6 +74,9 @@ BI RSAPubKey::EncryptPrimitive(const BI& msg) {
     } else {
         return calc::PowMod(msg, e_, n_);
     }
+}
+BI RSAPubKey::VerificationPrimitive(const BI& sign) {
+    return EncryptPrimitive(sign);
 }
 
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
@@ -143,6 +149,7 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     }
 }
 bool RSA::KeyMatch(const RSAPubKey& pub_key, const RSAPrvKey& prv_key) {
-    return pub_key.e_ * prv_key.d_ % prv_key.m_ == BI(1);
+    return pub_key.n_ == prv_key.n_ &&
+           pub_key.e_ * prv_key.d_ % prv_key.m_ == BI(1);
 }
 }  // namespace cryp

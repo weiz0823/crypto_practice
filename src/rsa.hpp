@@ -14,6 +14,7 @@ class RSAPrvKey {
     void PrintInfo();
     BI DecryptPrimitive(const BI& cipher);
     BI DecryptPrimitiveCRT(const BI& cipher);
+    BI SignaturePrimitive(const BI& msg);
     friend class RSA;
     friend class RSAPubKey;
 };
@@ -26,6 +27,7 @@ class RSAPubKey {
     RSAPubKey(const RSAPrvKey& prv);
     void PrintInfo();
     BI EncryptPrimitive(const BI& msg);
+    BI VerificationPrimitive(const BI& sign);
     friend class RSA;
 };
 class RSA {
