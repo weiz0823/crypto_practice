@@ -51,7 +51,7 @@ endif
 
 CXXFLAGS=-std=c++17
 TARGETS=
-RELEASE_TARGETS=base64 md5 sha1 sha2 sha3
+RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart
 DEBUG_TARGETS=rsa_test
 BENCHMARK_TARGETS=
 
@@ -117,6 +117,14 @@ sha3: src/sha3_app.cpp compile/sha3.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) -c src/sha3_app.cpp -o compile/sha3_app.o
 	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o compile/array_stream.o \
 		-o sha3
+
+compile/randomart.o: src/randomart.cpp src/randomart.hpp
+	$(CXX) $(CXXFLAGS) -c src/randomart.cpp -o compile/randomart.o
+
+randomart: src/randomart_app.cpp compile/randomart.o
+	$(CXX) $(CXXFLAGS) -c src/randomart_app.cpp -o compile/randomart_app.o
+	$(CXX) $(CXXFLAGS) compile/randomart_app.o compile/randomart.o \
+		-o randomart
 
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o

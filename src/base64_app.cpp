@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+
 #include "../src/base64.hpp"
 int main(int argc, char* argv[]) {
     if (argc <= 1 || (argv[1][0] != 'e' && argv[1][0] != 'd')) {
@@ -25,10 +26,8 @@ int main(int argc, char* argv[]) {
     } else {
         std::cin >> s;
         v = cryp::Base64::Decode(s.data(), s.length());
-        size_t len = v.size();
-        s.resize(len);
-        for (size_t i = 0; i < len; ++i) s[i] = char(v[i]);
-        std::cout << s << std::endl;
+        for (auto x : v) std::printf("%02hhx", x);
+        std::puts("");
     }
     return 0;
 }

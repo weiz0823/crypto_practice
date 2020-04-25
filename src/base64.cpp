@@ -54,10 +54,10 @@ std::string Base64::Encode(const uint8_t* data, size_t len) {
 }
 std::vector<uint8_t> Base64::Decode(const char* str, size_t len) {
     std::vector<uint8_t> v;
-    v.resize((len + 3) / 4 * 3);
+    v.reserve((len + 3) / 4 * 3);
     uint32_t t;
-    size_t p = 0, i = 3;
-    for (; i < len; i += 4, p += 3) {
+    size_t i = 3;
+    for (; i < len; i += 4) {
         if (decodetable_[uint8_t(str[i - 3])] > 63 ||
             decodetable_[uint8_t(str[i - 2])] > 63) {
             len = i - 3;
@@ -73,21 +73,21 @@ std::vector<uint8_t> Base64::Decode(const char* str, size_t len) {
                      (decodetable_[uint8_t(str[i - 2])] << 12) |
                      (decodetable_[uint8_t(str[i - 1])] << 6) |
                      decodetable_[uint8_t(str[i])]);
-        v[p] = uint8_t((t & (255 << 16)) >> 16);
-        v[p + 1] = uint8_t((t & (255 << 8)) >> 8);
-        v[p + 2] = uint8_t(t & 255);
+        v.push_back((t & (255 << 16)) >> 16);
+        v.push_back((t & (255 << 8)) >> 8);
+        v.push_back(t & 255);
     }
     // pad
     if ((len & 3) == 3) {
         t = uint32_t((decodetable_[uint8_t(str[i - 3])] << 18) |
                      (decodetable_[uint8_t(str[i - 2])] << 12) |
                      (decodetable_[uint8_t(str[i - 1])] << 6));
-        v[p] = uint8_t((t & (255 << 16)) >> 16);
-        v[p + 1] = uint8_t((t & (255 << 8)) >> 8);
+        v.push_back((t & (255 << 16)) >> 16);
+        v.push_back((t & (255 << 8)) >> 8);
     } else if ((len & 3) == 2) {
         t = uint32_t((decodetable_[uint8_t(str[i - 3])] << 18) |
                      (decodetable_[uint8_t(str[i - 2])] << 12));
-        v[p] = uint8_t((t & (255 << 16)) >> 16);
+        v.push_back((t & (255 << 16)) >> 16);
     }
     return v;
 }
