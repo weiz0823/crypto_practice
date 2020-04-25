@@ -75,6 +75,9 @@ endif
 
 all: $(TARGETS)
 
+compile/array_stream.o: src/array_stream.cpp src/array_stream.hpp
+	$(CXX) $(CXXFLAGS) -c src/array_stream.cpp -o compile/array_stream.o
+
 compile/base64.o: src/base64.cpp src/base64.hpp
 	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
 
@@ -86,47 +89,25 @@ base64: src/base64_app.cpp compile/base64.o
 compile/md5.o: src/md5.cpp src/md5.hpp
 	$(CXX) $(CXXFLAGS) -c src/md5.cpp -o compile/md5.o
 
-md5: src/md5_app.cpp compile/md5.o
+md5: src/md5_app.cpp compile/md5.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) -c src/md5_app.cpp -o compile/md5_app.o
-	$(CXX) $(CXXFLAGS) compile/md5_app.o compile/md5.o \
+	$(CXX) $(CXXFLAGS) compile/md5_app.o compile/md5.o compile/array_stream.o \
 		-o md5
 
 compile/sha1.o: src/sha1.cpp src/sha1.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha1.cpp -o compile/sha1.o
 
-sha1: src/sha1_app.cpp compile/sha1.o
+sha1: src/sha1_app.cpp compile/sha1.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) -c src/sha1_app.cpp -o compile/sha1_app.o
-	$(CXX) $(CXXFLAGS) compile/sha1_app.o compile/sha1.o \
+	$(CXX) $(CXXFLAGS) compile/sha1_app.o compile/sha1.o compile/array_stream.o \
 		-o sha1
 
-compile/sha2.o: src/sha2.cpp src/sha2.hpp
-	$(CXX) $(CXXFLAGS) -c src/sha2.cpp -o compile/sha2.o
-
-sha2: src/sha2_app.cpp compile/sha2.o
-	$(CXX) $(CXXFLAGS) -c src/sha2_app.cpp -o compile/sha2_app.o
-	$(CXX) $(CXXFLAGS) compile/sha2_app.o compile/sha2.o \
-		-o sha2
-
-compile/sha3.o: src/sha3.cpp src/sha3.hpp
-	$(CXX) $(CXXFLAGS) -c src/sha3.cpp -o compile/sha3.o
-
-sha3: src/sha3_app.cpp compile/sha3.o
-	$(CXX) $(CXXFLAGS) -c src/sha3_app.cpp -o compile/sha3_app.o
-	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o \
-		-o sha3
-
-compile/bigint64.o: src/bigint64.cpp src/bigint64.hpp src/bigint64_bit.cpp \
-	src/bigint64_io.cpp src/bigint64_add.cpp src/bigint64_basic.cpp \
-	src/bigint64_mul.cpp src/bigint64_div.cpp src/bigint64_compare.cpp \
-	src/bigint64_ext.cpp
-	$(CXX) $(CXXFLAGS) -c src/bigint64.cpp -o compile/bigint64.o
-
-compile/rsa.o: src/rsa.cpp src/rsa.hpp src/bigint64.hpp
+compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
 
-rsa_test: compile/rsa.o compile/bigint64.o tests/rsa_test.cpp
+rsa_test: compile/rsa.o src/bigint64.a tests/rsa_test.cpp
 	$(CXX) $(CXXFLAGS) -c tests/rsa_test.cpp -o compile/rsa_test.o
-	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o compile/bigint64.o \
+	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o src/bigint64.a \
 		-o rsa_test
 
 .PHONY: all clean clean-all

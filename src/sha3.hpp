@@ -1,6 +1,5 @@
-#ifndef SHA3_HPP
-#define SHA3_HPP
-#include <iostream>
+#pragma once
+#include "hash.hpp"
 
 namespace cryp {
 // secure hash function SHA-3
@@ -26,5 +25,3 @@ class SHA3 {
                                 uint32_t out_len);
 };
 }  // namespace cryp
-
-#endif /* SHA3_HPP */

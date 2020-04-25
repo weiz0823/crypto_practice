@@ -4,6 +4,7 @@
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     uint8_t a[20];
     uint64_t b;
+    cryp::SHA1 sha1;
     FILE* f = nullptr;
     if (argc > 1) {
         f = std::fopen(argv[1], "rb");
@@ -11,9 +12,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::perror("File opening failed");
             return EXIT_FAILURE;
         }
-        b = cryp::SHA1::Calculate(f, a);
+        b = sha1.Hash(f, a);
     } else {
-        b = cryp::SHA1::Calculate(stdin, a);
+        b = sha1.Hash(stdin, a);
     }
 
     std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,

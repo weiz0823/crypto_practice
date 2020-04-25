@@ -1,8 +1,10 @@
 #include <iostream>
+
 #include "md5.hpp"
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     uint8_t a[16];
     uint64_t b;
+    cryp::MD5 md5;
     FILE* f = nullptr;
     if (argc > 1) {
         f = std::fopen(argv[1], "rb");
@@ -10,9 +12,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::perror("File opening failed");
             return EXIT_FAILURE;
         }
-        b = cryp::MD5::Calculate(f, a);
+        b = md5.Hash(f, a);
     } else {
-        b = cryp::MD5::Calculate(stdin, a);
+        b = md5.Hash(stdin, a);
     }
 
     std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,

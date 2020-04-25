@@ -1,8 +1,92 @@
 #include "sha2.hpp"
-#include <cstring>
-typedef __uint128_t uint128_t;
-
 namespace cryp {
+typedef __uint128_t uint128_t;
+void SHA2_32::HashProcess() {
+    uint32_t a[8];
+    uint32_t w[64];
+    uint32_t f1, f2;
+    for (uint8_t i = 0; i < 8; ++i) a[i] = a0_[i];
+    for (uint8_t i = 0; i < 64; ++i) {
+        if (i < 16) {
+            w[i] = uint32_t(msg_[4 * i + 3]) + uint32_t(msg_[4 * i + 2] << 8) +
+                   uint32_t(msg_[4 * i + 1] << 16) +
+                   uint32_t(msg_[4 * i] << 24);
+        } else {
+            w[i] = w[i - 16] + w[i - 7];
+            w[i] += RightRotate32(w[i - 15], 7) ^ RightRotate32(w[i - 15], 18) ^
+                    (w[i - 15] >> 3);
+            w[i] += RightRotate32(w[i - 2], 17) ^ RightRotate32(w[i - 2], 19) ^
+                    (w[i - 2] >> 10);
+        }
+        f1 = K[i] + w[i] + a[7];
+        f1 += RightRotate32(a[4], 6) ^ RightRotate32(a[4], 11) ^
+              RightRotate32(a[4], 25);
+        f1 += (a[4] & a[5]) ^ (~a[4] & a[6]);
+        f2 = RightRotate32(a[0], 2) ^ RightRotate32(a[0], 13) ^
+             RightRotate32(a[0], 22);
+        f2 += (a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2]);
+        for (uint8_t j = 7; j > 0; --j) a[j] = a[j - 1];
+        a[4] += f1;
+        a[0] = f1 + f2;
+    }
+    for (uint8_t i = 0; i < 8; ++i) a0_[i] += a[i];
+}
+uint64_t SHA2_32::HashUpdate(std::FILE* file) {
+    if (!file) return msg_len_;
+    uint64_t old_chunk = chunk_len_;
+    chunk_len_ = std::fread(msg_ + old_chunk, 1, 64 - old_chunk, file);
+    msg_len_ += chunk_len_ << 3;
+    if (old_chunk + chunk_len_ < 64) return msg_len_;
+    do {
+        HashProcess();
+        chunk_len_ = std::fread(msg_, 1, 64, file);
+        msg_len_ += chunk_len_ << 3;
+    } while (chunk_len_ >= 64);
+    return msg_len_;
+}
+uint64_t SHA2_32::HashUpdate(const uint8_t* src, uint64_t bytelen) {
+    if (!src) return msg_len_;
+    uint64_t old_chunk = chunk_len_;
+    ArrayIstream stream(src, bytelen);
+    chunk_len_ = stream.Read(msg_ + old_chunk, 64 - old_chunk);
+    msg_len_ += chunk_len_ << 3;
+    if (old_chunk + chunk_len_ < 64) return msg_len_;
+    do {
+        HashProcess();
+        chunk_len_ = stream.Read(msg_, 64);
+        msg_len_ += chunk_len_ << 3;
+    } while (chunk_len_ >= 64);
+    return msg_len_;
+}
+uint64_t SHA2_32::HashFinal(uint8_t* dst) {
+    uint64_t len_tmp = 0;
+    // padding
+    if (chunk_len_ < 56) {
+        msg_[chunk_len_] = 0x80;
+        std::memset(msg_ + chunk_len_ + 1, 0, 55 - chunk_len_);
+        len_tmp = msg_len_;
+        for (uint8_t i = 56; i < 64; ++i) {
+            msg_[i] = len_tmp & 0xff;
+            len_tmp >>= 8;
+        }
+        HashProcess();
+    } else {
+        msg_[chunk_len_] = 0x80;
+        std::memset(msg_ + chunk_len_ + 1, 0, 63 - chunk_len_);
+        chunk_len_ = 64;
+        HashProcess();
+        // length information in next chunk
+        std::memset(msg_, 0, 56);
+        len_tmp = msg_len_;
+        for (uint8_t i = 56; i < 64; ++i) {
+            msg_[i] = len_tmp & 0xff;
+            len_tmp >>= 8;
+        }
+        HashProcess();
+    }
+    GetHash(dst);
+    return msg_len_;
+}
 
 uint64_t SHA2::SHA224_256(std::FILE* file, uint8_t* dest, uint32_t* a0,
                           uint32_t t) {
@@ -21,36 +105,37 @@ uint64_t SHA2::SHA224_256(std::FILE* file, uint8_t* dest, uint32_t* a0,
     uint32_t a[8];
     uint32_t f1, f2;
     size_t msg_len = 0, chunk_len = 0, len_tmp = 0;
-    uint8_t msg[64];
+    uint8_t msg_[64];
     uint32_t w[64];
     bool flag = false;
     do {
-        chunk_len = std::fread(msg, 1, 64, file);
+        chunk_len = std::fread(msg_, 1, 64, file);
         msg_len += chunk_len << 3;
         if (chunk_len < 56) {
             if (flag)
-                msg[chunk_len] = 0;
+                msg_[chunk_len] = 0;
             else
-                msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 55 - chunk_len);
+                msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 55 - chunk_len);
             len_tmp = msg_len;
             for (uint8_t i = 63; i >= 56; --i) {
-                msg[i] = len_tmp & 255;
+                msg_[i] = len_tmp & 255;
                 len_tmp >>= 8;
             }
         } else if (chunk_len < 64) {
-            msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 63 - chunk_len);
+            msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 63 - chunk_len);
             chunk_len = 64;
             flag = true;
         }
 
-        for (uint8_t i = 0; i < 8; ++i) a[i] = a0[i];
+        for (uint8_t i = 0; i < 8; ++i) a[i] = a0_[i];
         for (uint8_t i = 0; i < 64; ++i) {
             if (i < 16) {
-                w[i] =
-                    uint32_t(msg[4 * i + 3]) + uint32_t(msg[4 * i + 2] << 8) +
-                    uint32_t(msg[4 * i + 1] << 16) + uint32_t(msg[4 * i] << 24);
+                w[i] = uint32_t(msg_[4 * i + 3]) +
+                       uint32_t(msg_[4 * i + 2] << 8) +
+                       uint32_t(msg_[4 * i + 1] << 16) +
+                       uint32_t(msg_[4 * i] << 24);
             } else {
                 w[i] = w[i - 16] + w[i - 7];
                 w[i] += RightRotate32(w[i - 15], 7) ^
@@ -69,21 +154,21 @@ uint64_t SHA2::SHA224_256(std::FILE* file, uint8_t* dest, uint32_t* a0,
             a[4] += f1;
             a[0] = f1 + f2;
         }
-        for (uint8_t i = 0; i < 8; ++i) a0[i] += a[i];
+        for (uint8_t i = 0; i < 8; ++i) a0_[i] += a[i];
     } while (chunk_len >= 64);
     t = (t + 7) >> 3;
     if (t > 32) t = 32;
     uint32_t i;
     for (i = 0; i < (t >> 2); ++i)
         for (uint8_t j = 3; j != uint8_t(-1); --j) {
-            dest[(i << 2) + j] = a0[i] & 255;
-            a0[i] >>= 8;
+            dest[(i << 2) + j] = a0_[i] & 255;
+            a0_[i] >>= 8;
         }
     uint8_t j = 7;
-    for (; j != uint8_t(t - 1 - (i << 2)); --j) a0[i] >>= 8;
+    for (; j != uint8_t(t - 1 - (i << 2)); --j) a0_[i] >>= 8;
     for (; j != uint8_t(-1); --j) {
-        dest[(i << 2) + j] = a0[i] & 255;
-        a0[i] >>= 8;
+        dest[(i << 2) + j] = a0_[i] & 255;
+        a0_[i] >>= 8;
     }
     return msg_len;
 }
@@ -119,13 +204,13 @@ void SHA2::SHA512Process(uint64_t* a0, uint8_t* msg) {
         0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a,
         0x5fcb6fab3ad6faec, 0x6c44198c4a475817};
     uint64_t a[8];
-    for (uint8_t i = 0; i < 8; ++i) a[i] = a0[i];
+    for (uint8_t i = 0; i < 8; ++i) a[i] = a0_[i];
     for (uint8_t i = 0; i < 80; ++i) {
         if (i < 16) {
-            w[i] = uint64_t(msg[8 * i]);
+            w[i] = uint64_t(msg_[8 * i]);
             for (uint8_t j = 1; j < 8; ++j) {
                 w[i] <<= 8;
-                w[i] += uint64_t(msg[8 * i + j]);
+                w[i] += uint64_t(msg_[8 * i + j]);
             }
         } else {
             w[i] = w[i - 16] + w[i - 7];
@@ -145,31 +230,31 @@ void SHA2::SHA512Process(uint64_t* a0, uint8_t* msg) {
         a[4] += f1;
         a[0] = f1 + f2;
     }
-    for (uint8_t i = 0; i < 8; ++i) a0[i] += a[i];
+    for (uint8_t i = 0; i < 8; ++i) a0_[i] += a[i];
 }
 uint64_t SHA2::SHA384_512(std::FILE* file, uint8_t* dest, uint64_t* a0,
                           uint32_t t) {
     uint128_t msg_len(0), len_tmp(0);
     size_t chunk_len = 0;
-    uint8_t msg[128];
+    uint8_t msg_[128];
     bool flag = false;
     do {
-        chunk_len = std::fread(msg, 1, 128, file);
+        chunk_len = std::fread(msg_, 1, 128, file);
         msg_len += uint128_t(chunk_len << 3);
         if (chunk_len < 112) {
             if (flag)
-                msg[chunk_len] = 0;
+                msg_[chunk_len] = 0;
             else
-                msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 111 - chunk_len);
+                msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 111 - chunk_len);
             len_tmp = msg_len;
             for (uint8_t i = 127; i >= 112; --i) {
-                msg[i] = len_tmp & 255;
+                msg_[i] = len_tmp & 255;
                 len_tmp >>= 8;
             }
         } else if (chunk_len < 128) {
-            msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 127 - chunk_len);
+            msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 127 - chunk_len);
             chunk_len = 128;
             flag = true;
         }
@@ -181,26 +266,26 @@ uint64_t SHA2::SHA384_512(std::FILE* file, uint8_t* dest, uint64_t* a0,
     uint32_t i;
     for (i = 0; i < (t >> 3); ++i)
         for (uint8_t j = 7; j != uint8_t(-1); --j) {
-            dest[(i << 3) + j] = a0[i] & 255;
-            a0[i] >>= 8;
+            dest[(i << 3) + j] = a0_[i] & 255;
+            a0_[i] >>= 8;
         }
     uint8_t j = 7;
-    for (; j != uint8_t(t - 1 - (i << 3)); --j) a0[i] >>= 8;
+    for (; j != uint8_t(t - 1 - (i << 3)); --j) a0_[i] >>= 8;
     for (; j != uint8_t(-1); --j) {
-        dest[(i << 3) + j] = a0[i] & 255;
-        a0[i] >>= 8;
+        dest[(i << 3) + j] = a0_[i] & 255;
+        a0_[i] >>= 8;
     }
     return uint64_t(msg_len);
 }
 // generate initial value for SHA512/t
 uint64_t SHA2::SHA512t_IVGen(uint8_t* src, size_t tot_len, uint64_t* dest) {
-    uint64_t a0[8] = {0xcfac43c256196cad, 0x1ec20b20216f029e,
-                      0x99cb56d75b315d8e, 0x00ea509ffab89354,
-                      0xf4abf7da08432774, 0x3ea0cd298e9bc9ba,
-                      0xba267c0e5ee418ce, 0xfe4568bcb6db84dc};
+    uint64_t a0_[8] = {0xcfac43c256196cad, 0x1ec20b20216f029e,
+                       0x99cb56d75b315d8e, 0x00ea509ffab89354,
+                       0xf4abf7da08432774, 0x3ea0cd298e9bc9ba,
+                       0xba267c0e5ee418ce, 0xfe4568bcb6db84dc};
     uint128_t msg_len(0), len_tmp(0);
     size_t chunk_len = 0;
-    uint8_t msg[128];
+    uint8_t msg_[128];
     bool flag = false;
     size_t read_pos = 0;
     do {
@@ -210,60 +295,60 @@ uint64_t SHA2::SHA512t_IVGen(uint8_t* src, size_t tot_len, uint64_t* dest) {
                 chunk_len = i;
                 break;
             } else {
-                msg[i] = src[read_pos + i];
+                msg_[i] = src[read_pos + i];
             }
         }
         read_pos += chunk_len;
         msg_len += uint128_t(chunk_len << 3);
         if (chunk_len < 112) {
             if (flag)
-                msg[chunk_len] = 0;
+                msg_[chunk_len] = 0;
             else
-                msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 111 - chunk_len);
+                msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 111 - chunk_len);
             len_tmp = msg_len;
             for (uint8_t i = 127; i >= 112; --i) {
-                msg[i] = len_tmp & 255;
+                msg_[i] = len_tmp & 255;
                 len_tmp >>= 8;
             }
         } else if (chunk_len < 128) {
-            msg[chunk_len] = 128;
-            std::memset(msg + chunk_len + 1, 0, 127 - chunk_len);
+            msg_[chunk_len] = 128;
+            std::memset(msg_ + chunk_len + 1, 0, 127 - chunk_len);
             chunk_len = 128;
             flag = true;
         }
 
         SHA512Process(a0, msg);
     } while (chunk_len >= 128);
-    for (uint8_t i = 0; i < 8; ++i) dest[i] = a0[i];
+    for (uint8_t i = 0; i < 8; ++i) dest[i] = a0_[i];
     return uint64_t(msg_len);
 }
 uint64_t SHA2::SHA224(std::FILE* file, uint8_t* dest) {
-    uint32_t a0[8] = {0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939,
-                      0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4};
+    uint32_t a0_[8] = {0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939,
+                       0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4};
     return SHA224_256(file, dest, a0, 224);
 }
 uint64_t SHA2::SHA256(std::FILE* file, uint8_t* dest) {
-    uint32_t a0[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-                      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+    uint32_t a0_[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
     return SHA224_256(file, dest, a0, 256);
 }
 uint64_t SHA2::SHA384(std::FILE* file, uint8_t* dest) {
-    uint64_t a0[8] = {0xcbbb9d5dc1059ed8, 0x629a292a367cd507,
-                      0x9159015a3070dd17, 0x152fecd8f70e5939,
-                      0x67332667ffc00b31, 0x8eb44a8768581511,
-                      0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4};
+    uint64_t a0_[8] = {0xcbbb9d5dc1059ed8, 0x629a292a367cd507,
+                       0x9159015a3070dd17, 0x152fecd8f70e5939,
+                       0x67332667ffc00b31, 0x8eb44a8768581511,
+                       0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4};
     return SHA384_512(file, dest, a0, 384);
 }
 uint64_t SHA2::SHA512(std::FILE* file, uint8_t* dest) {
-    uint64_t a0[8] = {0x6a09e667f3bcc908, 0xbb67ae8584caa73b,
-                      0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
-                      0x510e527fade682d1, 0x9b05688c2b3e6c1f,
-                      0x1f83d9abfb41bd6b, 0x5be0cd19137e2179};
+    uint64_t a0_[8] = {0x6a09e667f3bcc908, 0xbb67ae8584caa73b,
+                       0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
+                       0x510e527fade682d1, 0x9b05688c2b3e6c1f,
+                       0x1f83d9abfb41bd6b, 0x5be0cd19137e2179};
     return SHA384_512(file, dest, a0, 512);
 }
 uint64_t SHA2::SHA512t(std::FILE* file, uint8_t* dest, uint32_t t) {
-    uint64_t a0[8];
+    uint64_t a0_[8];
     char s[32];
     std::sprintf(s, "SHA-512/%u", t);
     SHA512t_IVGen(reinterpret_cast<uint8_t*>(s), std::strlen(s), a0);
