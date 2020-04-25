@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-make md5 sha1 sha2 sha3 MODE=release || exit
+#!/usr/bin/env bash
+# make md5 sha1 sha2 sha3 MODE=release || exit
 echo -n "" >hash_func_tests.txt
 echo -n 'text="'
 cat hash_func_tests.txt

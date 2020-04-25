@@ -1,27 +1,44 @@
 #pragma once
 #include "hash.hpp"
-
 namespace cryp {
-// secure hash function SHA-3
-class SHA3 {
-   private:
-    static constexpr uint64_t LeftRotate64(uint64_t x, uint64_t n) {
-        return (x << n) | (x >> (64 - n));
-    }
-    static void Keccak_Permutation(uint64_t a[5][5]);
-    template <uint32_t CAP, uint8_t SUFFIX>
-    static uint64_t Keccak(std::FILE* file, uint8_t* dest, uint32_t out_len);
+// Secure Hash Function SHA-3
+// Standard: FIPS 202: SHA-3
+template <uint32_t CAP, uint8_t PAD>
+class SHA3Var : public SecureHashFunc {
+   protected:
+    static constexpr uint32_t RATE = 200 - (CAP >> 2);
+    uint64_t a_[5][5];
+    uint64_t msg_len_ = 0, chunk_len_ = 0;
+    uint8_t msg_[RATE];
+    void HashProcess();
+    void GetHash(uint8_t* dst);
 
    public:
-    static uint64_t SHA224(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA256(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA384(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA512(std::FILE* file, uint8_t* dest);
-    static uint64_t SHAKE128(std::FILE* file, uint8_t* dest, uint32_t out_len);
-    static uint64_t SHAKE256(std::FILE* file, uint8_t* dest, uint32_t out_len);
-    static uint64_t RawSHAKE128(std::FILE* file, uint8_t* dest,
-                                uint32_t out_len);
-    static uint64_t RawSHAKE256(std::FILE* file, uint8_t* dest,
-                                uint32_t out_len);
+    SHA3Var(uint64_t t) : SecureHashFunc(t) { std::memset(a_, 0, sizeof(a_)); }
+    virtual uint64_t HashUpdate(std::FILE* file) override;
+    virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
+    virtual uint64_t HashFinal(uint8_t* dst) override;
+    inline void SetHashLen(uint64_t hl) { hlen_ = hl; }
 };
+template <uint32_t CAP, uint8_t PAD>
+class SHA3 final : public SHA3Var<CAP, PAD> {
+   public:
+    SHA3() : SHA3Var<CAP, PAD>(CAP) {}
+};
+extern template class SHA3<224, 0x06>;
+extern template class SHA3<256, 0x06>;
+extern template class SHA3<384, 0x06>;
+extern template class SHA3<512, 0x06>;
+extern template class SHA3Var<128, 0x1f>;
+extern template class SHA3Var<256, 0x1f>;
+extern template class SHA3Var<128, 0x07>;
+extern template class SHA3Var<256, 0x07>;
+typedef SHA3<224, 0x06> SHA3_224;
+typedef SHA3<256, 0x06> SHA3_256;
+typedef SHA3<384, 0x06> SHA3_384;
+typedef SHA3<512, 0x06> SHA3_512;
+typedef SHA3Var<128, 0x1f> SHAKE128;
+typedef SHA3Var<256, 0x1f> SHAKE256;
+typedef SHA3Var<128, 0x07> RawSHAKE128;
+typedef SHA3Var<256, 0x07> RawSHAKE256;
 }  // namespace cryp

@@ -102,6 +102,22 @@ sha1: src/sha1_app.cpp compile/sha1.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) compile/sha1_app.o compile/sha1.o compile/array_stream.o \
 		-o sha1
 
+compile/sha2.o: src/sha2.cpp src/sha2.hpp
+	$(CXX) $(CXXFLAGS) -c src/sha2.cpp -o compile/sha2.o
+
+sha2: src/sha2_app.cpp compile/sha2.o compile/array_stream.o
+	$(CXX) $(CXXFLAGS) -c src/sha2_app.cpp -o compile/sha2_app.o
+	$(CXX) $(CXXFLAGS) compile/sha2_app.o compile/sha2.o compile/array_stream.o \
+		-o sha2
+
+compile/sha3.o: src/sha3.cpp src/sha3.hpp
+	$(CXX) $(CXXFLAGS) -c src/sha3.cpp -o compile/sha3.o
+
+sha3: src/sha3_app.cpp compile/sha3.o compile/array_stream.o
+	$(CXX) $(CXXFLAGS) -c src/sha3_app.cpp -o compile/sha3_app.o
+	$(CXX) $(CXXFLAGS) compile/sha3_app.o compile/sha3.o compile/array_stream.o \
+		-o sha3
+
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
 

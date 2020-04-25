@@ -1,6 +1,7 @@
 #pragma once
 #include "hash.hpp"
 namespace cryp {
+typedef __uint128_t uint128_t;
 // SHA-2 Family
 // Standard: FIPS 180: Secure Hash Standard
 // 32-bit based on SHA256
@@ -22,13 +23,14 @@ class SHA2_32 : public SecureHashFunc {
     uint64_t msg_len_ = 0, chunk_len_ = 0;
     uint8_t msg_[64];
     void HashProcess();
+    virtual void GetHash(uint8_t* dst) = 0;
+    virtual void Reset() = 0;
 
    public:
     SHA2_32(uint64_t hashlen) : SecureHashFunc(hashlen) {}
     virtual uint64_t HashUpdate(std::FILE* file) override;
     virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
     virtual uint64_t HashFinal(uint8_t* dst) override;
-    virtual uint64_t GetHash(uint8_t* dst) = 0;
 };
 // 64-bit based ont SHA512
 class SHA2_64 : public SecureHashFunc {
@@ -62,91 +64,56 @@ class SHA2_64 : public SecureHashFunc {
         0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a,
         0x5fcb6fab3ad6faec, 0x6c44198c4a475817};
     uint64_t a0_[8];
+    uint128_t msg_len_ = 0;
+    uint64_t chunk_len_ = 0;
+    uint8_t msg_[128];
     void HashProcess();
+    virtual void GetHash(uint8_t* dst) = 0;
+    virtual void Reset() = 0;
 
    public:
     SHA2_64(uint64_t hashlen) : SecureHashFunc(hashlen) {}
     virtual uint64_t HashUpdate(std::FILE* file) override;
     virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
     virtual uint64_t HashFinal(uint8_t* dst) override;
-    virtual uint64_t GetHash(uint8_t* dst) = 0;
-};
-class SHA2 : public SecureHashFunc {
-   protected:
-    static uint64_t SHA224_256(std::FILE* file, uint8_t* dest, uint32_t* a0,
-                               uint32_t t);
-    static void SHA512Process(uint64_t* a0, uint8_t* Emsg);
-    static uint64_t SHA384_512(std::FILE* file, uint8_t* dest, uint64_t* a0,
-                               uint32_t t);
-    static uint64_t SHA512t_IVGen(uint8_t* src, size_t len, uint64_t* dest);
-
-   public:
-    SHA2(uint64_t hashlen) : SecureHashFunc(hashlen) {}
-    static uint64_t SHA224(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA256(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA384(std::FILE* file, uint8_t* dest);
-    static uint64_t SHA512(std::FILE* file, uint8_t* dest);
-    // generate initial value for SHA512/t
-    static uint64_t SHA512t(std::FILE* file, uint8_t* dest, uint32_t t);
-    static inline uint64_t SHA512_224(std::FILE* file, uint8_t* dest) {
-        return SHA512t(file, dest, 224);
-    }
-    static inline uint64_t SHA512_256(std::FILE* file, uint8_t* dest) {
-        return SHA512t(file, dest, 256);
-    }
 };
 class SHA224 final : public SHA2_32 {
+    virtual void GetHash(uint8_t* dst) override;
+    virtual void Reset() override;
+
    public:
-    SHA224() : SHA2_32(224) {
-        static constexpr uint32_t a[8] = {0xc1059ed8, 0x367cd507, 0x3070dd17,
-                                          0xf70e5939, 0xffc00b31, 0x68581511,
-                                          0x64f98fa7, 0xbefa4fa4};
-        for (uint8_t i = 0; i < 8; ++i) a0_[i] = a[i];
-    }
-    virtual uint64_t GetHash(uint8_t* dst);
+    SHA224() : SHA2_32(224) { Reset(); }
 };
 class SHA256 final : public SHA2_32 {
+    virtual void GetHash(uint8_t* dst) override;
+    virtual void Reset() override;
+
    public:
-    SHA256() : SHA2_32(256) {
-        static constexpr uint32_t a[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372,
-                                          0xa54ff53a, 0x510e527f, 0x9b05688c,
-                                          0x1f83d9ab, 0x5be0cd19};
-        for (uint8_t i = 0; i < 8; ++i) a0_[i] = a[i];
-    }
-    virtual uint64_t GetHash(uint8_t* dst);
+    SHA256() : SHA2_32(256) { Reset(); }
 };
 class SHA384 final : public SHA2_64 {
+    virtual void GetHash(uint8_t* dst) override;
+    virtual void Reset() override;
+
    public:
-    SHA384() : SHA2_64(384) {
-        static constexpr uint64_t a[8] = {
-            0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17,
-            0x152fecd8f70e5939, 0x67332667ffc00b31, 0x8eb44a8768581511,
-            0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4};
-        for (uint8_t i = 0; i < 8; ++i) a0_[i] = a[i];
-    }
-    virtual uint64_t GetHash(uint8_t* dst);
+    SHA384() : SHA2_64(384) { Reset(); }
 };
-class SHA512 : public SHA2_64 {
+class SHA512 final : public SHA2_64 {
+    virtual void GetHash(uint8_t* dst) override;
+    virtual void Reset() override;
+
    public:
-    SHA512() : SHA2_64(512) {
-        static constexpr uint64_t a[8] = {
-            0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b,
-            0xa54ff53a5f1d36f1, 0x510e527fade682d1, 0x9b05688c2b3e6c1f,
-            0x1f83d9abfb41bd6b, 0x5be0cd19137e2179};
-        for (uint8_t i = 0; i < 8; ++i) a0_[i] = a[i];
-    }
-    virtual uint64_t GetHash(uint8_t* dst);
+    SHA512() : SHA2_64(512) { Reset(); }
 };
-class SHA512t : public SHA2_64 {
+class SHA512t final : public SHA2_64 {
+    virtual void GetHash(uint8_t* dst) override;
+    virtual void Reset() override;
+    uint64_t iv_[8] = {0xcfac43c256196cad, 0x1ec20b20216f029e,
+                       0x99cb56d75b315d8e, 0x00ea509ffab89354,
+                       0xf4abf7da08432774, 0x3ea0cd298e9bc9ba,
+                       0xba267c0e5ee418ce, 0xfe4568bcb6db84dc};
+
    public:
-    SHA512t(uint64_t t) : SHA2_64(t) {
-        static constexpr uint64_t a[8] = {
-            0xcfac43c256196cad, 0x1ec20b20216f029e, 0x99cb56d75b315d8e,
-            0x00ea509ffab89354, 0xf4abf7da08432774, 0x3ea0cd298e9bc9ba,
-            0xba267c0e5ee418ce, 0xfe4568bcb6db84dc};
-        for (uint8_t i = 0; i < 8; ++i) a0_[i] = a[i];
-        // do a hash
-    }
-    virtual uint64_t GetHash(uint8_t* dst);
+    SHA512t(uint64_t t);
 };
 }  // namespace cryp

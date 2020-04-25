@@ -31,7 +31,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
     }
     if (!std::strcmp(argv[1], "sha224")) {
-        b = cryp::SHA2::SHA224(f, a);
+        cryp::SHA224 sha224;
+        b = sha224.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-224: ");
@@ -64,7 +65,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA-224 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha256")) {
-        b = cryp::SHA2::SHA256(f, a);
+        cryp::SHA256 sha256;
+        b = sha256.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-256: ");
@@ -97,7 +99,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA-256 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha384")) {
-        b = cryp::SHA2::SHA384(f, a);
+        cryp::SHA384 sha384;
+        b = sha384.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-384: ");
@@ -130,7 +133,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA-384 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha512")) {
-        b = cryp::SHA2::SHA512(f, a);
+        cryp::SHA512 sha512;
+        b = sha512.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-512: ");
@@ -181,7 +185,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
                 "    But the result will be different from SHA512/ceil(t/8)",
                 stderr);
         }
-        b = cryp::SHA2::SHA512t(f, a, t);
+        cryp::SHA512t sha512t(t);
+        b = sha512t.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA-512/%u: ", t);

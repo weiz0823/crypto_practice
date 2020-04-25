@@ -31,7 +31,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         }
     }
     if (!std::strcmp(argv[1], "sha3-224")) {
-        b = cryp::SHA3::SHA224(f, a);
+        cryp::SHA3_224 sha3_224;
+        b = sha3_224.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA3-224: ");
@@ -64,7 +65,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA3-224 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha3-256")) {
-        b = cryp::SHA3::SHA256(f, a);
+        cryp::SHA3_256 sha3_256;
+        b = sha3_256.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA3-256: ");
@@ -97,7 +99,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA3-256 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha3-384")) {
-        b = cryp::SHA3::SHA384(f, a);
+        cryp::SHA3_384 sha3_384;
+        b = sha3_384.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA3-384: ");
@@ -130,7 +133,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::puts("SHA3-384 ok.");
         }
     } else if (!std::strcmp(argv[1], "sha3-512")) {
-        b = cryp::SHA3::SHA512(f, a);
+        cryp::SHA3_512 sha3_512;
+        b = sha3_512.Hash(f, a);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHA3-512: ");
@@ -173,7 +177,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::fprintf(stderr, "Warning: t=%u not divisible by 8.", t);
             std::fputs("result will be trunucated to ceil(t/8) bytes.", stderr);
         }
-        b = cryp::SHA3::SHAKE128(f, va, hash_len);
+        cryp::SHAKE128 shake128(t);
+        b = shake128.Hash(f, va);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHAKE128(d=%u): ", t);
@@ -219,7 +224,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::fprintf(stderr, "Warning: t=%u not divisible by 8.", t);
             std::fputs("result will be trunucated to ceil(t/8) bytes.", stderr);
         }
-        b = cryp::SHA3::SHAKE256(f, va, hash_len);
+        cryp::SHAKE256 shake256(t);
+        b = shake256.Hash(f, va);
         std::printf("Message length in bits (mod 2^64): %llu (%llu bytes)\n", b,
                     b >> 3);
         std::printf("SHAKE256(d=%u): ", t);

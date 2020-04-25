@@ -98,11 +98,11 @@ uint64_t SHA1::HashFinal(uint8_t* dst) {
         HashProcess();
     }
     for (uint8_t i = 3; i != uint8_t(-1); --i) {
-        dst[i] = a0_ & 255;
-        dst[i + 4] = b0_ & 255;
-        dst[i + 8] = c0_ & 255;
-        dst[i + 12] = d0_ & 255;
-        dst[i + 16] = e0_ & 255;
+        dst[i] = a0_ & 0xff;
+        dst[i + 4] = b0_ & 0xff;
+        dst[i + 8] = c0_ & 0xff;
+        dst[i + 12] = d0_ & 0xff;
+        dst[i + 16] = e0_ & 0xff;
         a0_ >>= 8;
         b0_ >>= 8;
         c0_ >>= 8;
