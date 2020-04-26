@@ -133,7 +133,7 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
         std::printf("Verify:\n    message: ");
         BI msg;
         msg.GenRandom(1).Print();
-        std::printf("\n    cipher: ");
+        std::printf("\n    ciphertext: ");
         BI cipher = pub_key->EncryptPrimitive(msg);
         cipher.Print();
         std::printf("\n    recover message: ");

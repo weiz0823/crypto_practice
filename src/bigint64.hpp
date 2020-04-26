@@ -11,8 +11,8 @@ class CompMp;
 template <typename IntT>
 class BigInt;
 
-typedef __uint128_t uint128_t;
-typedef __int128_t int128_t;
+using uint128_t = __uint128_t;
+using int128_t = __int128_t;
 
 // Work fine on little-endian machine.
 // Big-endian can be done by reversing the whole vector
@@ -21,22 +21,21 @@ typedef __int128_t int128_t;
 template <>
 class BigInt<uint128_t> {
     // data
-    uint128_t* val_ = nullptr;
-    uint64_t len_ = 2;  // actual used length
-    uint64_t cap_ = 4;  // capacity
-    uint128_t* end_ = nullptr;
+    uint128_t* val_;
+    uint64_t len_;  // actual used length
+    uint64_t cap_;  // capacity
+    uint128_t* end_;
     static constexpr uint64_t LIMB = 128;
     static constexpr uint64_t LOGLIMB = 7;
     static constexpr uint64_t MAX_CAP = uint64_t(1) << 63;
 
     // random device
-    // NOLINTNEXTLINE: c++17 ok
-    inline static std::random_device rand_dev_;
-    // NOLINTNEXTLINE: c++17 ok
+    // inline static std::random_device rand_dev_;
+    inline static auto rand_dev_ = std::random_device();
     inline static auto rand_gen_ = static_cast<std::mt19937>(rand_dev_());
     // usage: rand_(rand_gen_)
-    // NOLINTNEXTLINE: c++17 ok
-    inline static std::uniform_int_distribution<uint64_t> rand_;
+    inline static auto rand_ = std::uniform_int_distribution<uint64_t>();
+    // inline static std::uniform_int_distribution<uint64_t> rand_;
 
     // bigint64_div.cpp
     uint64_t DivDCore(const BigInt& rhs, uint64_t v1, uint64_t v2, uint64_t u1h,
@@ -106,6 +105,8 @@ class BigInt<uint128_t> {
                          bool uppercase = false) const;
     explicit BigInt(const char* str, size_t base = 0);
     explicit BigInt(const std::string& str, size_t base = 0);
+	// two's complement octet string (bytes), big-endian (network flow style)
+    std::vector<uint8_t> ToOctetString() const;
 
     // bigint64_compare.cpp
 #ifdef __cpp_impl_three_way_comparison

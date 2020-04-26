@@ -2,6 +2,7 @@
 #include <cstdint>
 namespace cryp {
 class ArrayIstream {
+    // just a reference to array
     const uint8_t* arr_;
     const uint64_t len_;
     uint64_t read_pos_ = 0;

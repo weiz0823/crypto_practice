@@ -19,4 +19,10 @@ TODO
 
 -   \[ \] What to do next?
 
+References
+----------
+
+-   https://www.iso.org/committee/45306/x/catalogue/
+-   https://en.wikipedia.org/wiki/Outline\_of\_cryptography
+
   [KaitoD/CPP-OOP-CALC]: https://github.com/KaitoD/CPP-OOP-CALC

@@ -78,6 +78,9 @@ all: $(TARGETS)
 compile/array_stream.o: src/array_stream.cpp src/array_stream.hpp
 	$(CXX) $(CXXFLAGS) -c src/array_stream.cpp -o compile/array_stream.o
 
+compile/flow.o: src/flow.cpp src/flow.hpp
+	$(CXX) $(CXXFLAGS) -c src/flow.cpp -o compile/flow.o
+
 compile/base64.o: src/base64.cpp src/base64.hpp
 	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
 
