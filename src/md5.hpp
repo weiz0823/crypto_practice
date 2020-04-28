@@ -40,10 +40,7 @@ class MD5 final : public SecureHashFunc {
    public:
     MD5() : SecureHashFunc(128) {}
     virtual uint64_t HashUpdate(std::FILE* file) override;
-    // hash array of bytes
     virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
-    // hash with final padding, and output hash value
-    // okay to 'read' from nullptr
     virtual uint64_t HashFinal(uint8_t* dst) override;
 };
 }  // namespace cryp

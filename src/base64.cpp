@@ -1,6 +1,6 @@
 #include "base64.hpp"
 namespace cryp {
-const char* Base64::Charset() { return charset_; }
+const char* Base64::Charset() const { return charset_; }
 int Base64::SetCharset(const char* str) {
     std::fill(decodetable_, decodetable_ + 128, 0);
     for (uint8_t i = 0; i < 64; ++i) {
@@ -11,7 +11,7 @@ int Base64::SetCharset(const char* str) {
     return 0;
 }
 void Base64::SetPad(const char ch) { pad_ = ch; }
-std::string Base64::Encode(const uint8_t* data, size_t len) {
+std::string Base64::Encode(const uint8_t* data, size_t len) const {
     std::string str;
     str.resize((len + 2) / 3 * 4, '\0');
     uint32_t t;
@@ -39,7 +39,7 @@ std::string Base64::Encode(const uint8_t* data, size_t len) {
     }
     return str;
 }
-std::vector<uint8_t> Base64::Decode(const char* str, size_t len) {
+std::vector<uint8_t> Base64::Decode(const char* str, size_t len) const {
     std::vector<uint8_t> v;
     v.reserve((len + 3) / 4 * 3);
     uint32_t t;

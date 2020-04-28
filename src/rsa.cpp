@@ -48,13 +48,25 @@ BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
         return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
     }
 }
-BI RSAPrvKey::SignaturePrimitive(const BI& msg) {
-    return DecryptPrimitiveCRT(msg);
-}
 
-RSAPubKey::RSAPubKey(const RSAPrvKey& prv) : n_(prv.n_) {
-    // e * d = 1 (mod m)
-    calc::ExtGcdBin(prv.d_, prv.m_, &e_, nullptr);
+RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt) {
+    switch (fmt) {
+        case kSSH:
+            const uint8_t *x, *y;
+            // "ssh-rsa"
+            DeserializeString(&x, &y, data);
+            DeserializeString(&x, &y, y);
+            e_ = BI(x, y);
+            DeserializeString(&x, &y, y);
+            n_ = BI(x, y);
+            break;
+        case kPKCS:
+            break;
+        case kPEM:
+            break;
+        case kRFC3279:
+            break;
+    }
 }
 void RSAPubKey::PrintInfo() {
     auto bit_len = n_.BitLen();
@@ -67,6 +79,23 @@ void RSAPubKey::PrintInfo() {
     std::puts("");
     std::printf("---End RSA-%llu public key---\n", bit_len);
 }
+std::vector<uint8_t> RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
+    std::vector<uint8_t> v;
+    switch (fmt) {
+        case kSSH:
+            SerializeString(v, "ssh-rsa", 7);
+            SerializeString(v, e_.Serialize());
+            SerializeString(v, n_.Serialize());
+            break;
+        case kPKCS:
+            break;
+        case kPEM:
+            break;
+        case kRFC3279:
+            break;
+    }
+    return v;
+}
 BI RSAPubKey::EncryptPrimitive(const BI& msg) {
     if (msg.Sign() || msg >= n_) {
         std::fputs(" Error:message representative out of range.", stderr);
@@ -74,9 +103,6 @@ BI RSAPubKey::EncryptPrimitive(const BI& msg) {
     } else {
         return calc::PowMod(msg, e_, n_);
     }
-}
-BI RSAPubKey::VerificationPrimitive(const BI& sign) {
-    return EncryptPrimitive(sign);
 }
 
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
@@ -147,9 +173,5 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
         std::printf("\n        message match? ");
         std::cout << std::boolalpha << (rec == msg) << std::endl;
     }
-}
-bool RSA::KeyMatch(const RSAPubKey& pub_key, const RSAPrvKey& prv_key) {
-    return pub_key.n_ == prv_key.n_ &&
-           pub_key.e_ * prv_key.d_ % prv_key.m_ == BI(1);
 }
 }  // namespace cryp

@@ -21,9 +21,10 @@ class Base64 : public Bin2Text {
    public:
     //@return 0) ok, other) not ok (str too short)
     int SetCharset(const char* str);
-    const char* Charset();
+    const char* Charset() const;
     void SetPad(char ch);
-    virtual std::string Encode(const uint8_t* data, size_t len) override;
-    virtual std::vector<uint8_t> Decode(const char* str, size_t len) override;
+    virtual std::string Encode(const uint8_t* data, size_t len) const override;
+    virtual std::vector<uint8_t> Decode(const char* str,
+                                        size_t len) const override;
 };
 }  // namespace cryp

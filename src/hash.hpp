@@ -19,6 +19,7 @@ class SecureHashFunc {
     // hash array of bytes without padding
     virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) = 0;
     // hash with final padding, output hash value, and reset to default state
+    // okay to 'read' from nullptr
     virtual uint64_t HashFinal(uint8_t* dst) = 0;
     inline virtual uint64_t Hash(std::FILE* file, uint8_t* dst) {
         HashUpdate(file);
@@ -30,6 +31,6 @@ class SecureHashFunc {
         return HashFinal(dst);
     }
     // hash length read-only
-    inline uint64_t HashLen() { return hlen_; }
+    inline uint64_t HashLen() const { return hlen_; }
     virtual ~SecureHashFunc() = default;
 };

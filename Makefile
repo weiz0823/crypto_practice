@@ -78,10 +78,13 @@ all: $(TARGETS)
 compile/array_stream.o: src/array_stream.cpp src/array_stream.hpp
 	$(CXX) $(CXXFLAGS) -c src/array_stream.cpp -o compile/array_stream.o
 
-compile/flow.o: src/flow.cpp src/flow.hpp
-	$(CXX) $(CXXFLAGS) -c src/flow.cpp -o compile/flow.o
+compile/serialize.o: src/serialize.cpp src/serialize.hpp
+	$(CXX) $(CXXFLAGS) -c src/serialize.cpp -o compile/serialize.o
 
-compile/base64.o: src/base64.cpp src/base64.hpp
+compile/hexprint.o: src/hexprint.cpp src/hexprint.hpp src/bin2text.hpp
+	$(CXX) $(CXXFLAGS) -c src/hexprint.cpp -o compile/hexprint.o
+
+compile/base64.o: src/base64.cpp src/base64.hpp src/bin2text.hpp
 	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
 
 base64: src/base64_app.cpp compile/base64.o
@@ -89,7 +92,7 @@ base64: src/base64_app.cpp compile/base64.o
 	$(CXX) $(CXXFLAGS) compile/base64_app.o compile/base64.o \
 		-o base64
 
-compile/md5.o: src/md5.cpp src/md5.hpp
+compile/md5.o: src/md5.cpp src/md5.hpp src/hash.hpp
 	$(CXX) $(CXXFLAGS) -c src/md5.cpp -o compile/md5.o
 
 md5: src/md5_app.cpp compile/md5.o compile/array_stream.o
@@ -97,7 +100,7 @@ md5: src/md5_app.cpp compile/md5.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) compile/md5_app.o compile/md5.o compile/array_stream.o \
 		-o md5
 
-compile/sha1.o: src/sha1.cpp src/sha1.hpp
+compile/sha1.o: src/sha1.cpp src/sha1.hpp src/hash.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha1.cpp -o compile/sha1.o
 
 sha1: src/sha1_app.cpp compile/sha1.o compile/array_stream.o
@@ -105,7 +108,7 @@ sha1: src/sha1_app.cpp compile/sha1.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) compile/sha1_app.o compile/sha1.o compile/array_stream.o \
 		-o sha1
 
-compile/sha2.o: src/sha2.cpp src/sha2.hpp
+compile/sha2.o: src/sha2.cpp src/sha2.hpp src/hash.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha2.cpp -o compile/sha2.o
 
 sha2: src/sha2_app.cpp compile/sha2.o compile/array_stream.o
@@ -113,7 +116,7 @@ sha2: src/sha2_app.cpp compile/sha2.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) compile/sha2_app.o compile/sha2.o compile/array_stream.o \
 		-o sha2
 
-compile/sha3.o: src/sha3.cpp src/sha3.hpp
+compile/sha3.o: src/sha3.cpp src/sha3.hpp src/hash.hpp
 	$(CXX) $(CXXFLAGS) -c src/sha3.cpp -o compile/sha3.o
 
 sha3: src/sha3_app.cpp compile/sha3.o compile/array_stream.o
@@ -132,9 +135,10 @@ randomart: src/randomart_app.cpp compile/randomart.o
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
 
-rsa_test: compile/rsa.o src/bigint64.a tests/rsa_test.cpp
+rsa_test: compile/rsa.o src/bigint64.a tests/rsa_test.cpp compile/base64.o compile/serialize.o
 	$(CXX) $(CXXFLAGS) -c tests/rsa_test.cpp -o compile/rsa_test.o
 	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o src/bigint64.a \
+		compile/base64.o compile/serialize.o \
 		-o rsa_test
 
 .PHONY: all clean clean-all

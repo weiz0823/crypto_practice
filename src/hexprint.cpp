@@ -1,6 +1,6 @@
 #include "hexprint.hpp"
 namespace cryp {
-std::string HexPrint::Encode(const uint8_t* data, size_t len) {
+std::string HexPrint::Encode(const uint8_t* data, size_t len) const {
     size_t i = 0;
     std::string str;
     char buf[10];
@@ -17,7 +17,7 @@ std::string HexPrint::Encode(const uint8_t* data, size_t len) {
     }
     return str;
 }
-std::vector<uint8_t> HexPrint::Decode(const char* str, size_t len) {
+std::vector<uint8_t> HexPrint::Decode(const char* str, size_t len) const {
     std::vector<uint8_t> v;
     v.reserve((len + 1) >> 1);
     uint8_t num = 0;
