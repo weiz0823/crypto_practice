@@ -266,7 +266,9 @@ void SHA512t::Reset() {
     std::memcpy(a0_, iv_, 64);
     msg_len_ = chunk_len_ = 0;
 }
-SHA512t::SHA512t(uint64_t t) : SHA2_64(t > 512 ? 512 : t) {
+SHA512t::SHA512t(uint64_t t)
+    : SHA2_64(t == 224 ? id_sha512_224 : t == 256 ? id_sha512_256 : id_unknown,
+              t > 512 ? 512 : t) {
     std::memcpy(a0_, iv_, 64);
     // do a hash to calculate iv
     char s[32];

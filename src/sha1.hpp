@@ -2,8 +2,9 @@
 #include "hash.hpp"
 
 namespace cryp {
+inline const OID id_sha1("id-sha1", id_secsig_alg, "26", "SHA1");
 // Secure Hash Function SHA-1
-// Standard: FIPS 180: Secure Hash Standard
+// Standard: FIPS 180: Secure Hash Standard (SHS)
 class SHA1 final : public SecureHashFunc {
     uint32_t a0_ = 0x67452301;
     uint32_t b0_ = 0xefcdab89;
@@ -16,9 +17,9 @@ class SHA1 final : public SecureHashFunc {
     void HashProcess();
 
    public:
-    SHA1() : SecureHashFunc(160) {}
-    virtual uint64_t HashUpdate(std::FILE* file) override;
-    virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
-    virtual uint64_t HashFinal(uint8_t* dst) override;
+    SHA1() : SecureHashFunc(id_sha1, 160) {}
+    uint64_t HashUpdate(std::FILE* file) override;
+    uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
+    uint64_t HashFinal(uint8_t* dst) override;
 };
 }  // namespace cryp

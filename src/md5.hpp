@@ -2,6 +2,7 @@
 #include "hash.hpp"
 
 namespace cryp {
+inline const OID id_md5("id-md5", id_digest, "2", "MD5");
 // Standards: RFC 1321: MD5 Message-digest
 //            RFC 6151: Updated Security Considerations on MD5
 // Not anti-collision, but can check for unintentional data modification
@@ -38,9 +39,9 @@ class MD5 final : public SecureHashFunc {
     void HashProcess();
 
    public:
-    MD5() : SecureHashFunc(128) {}
-    virtual uint64_t HashUpdate(std::FILE* file) override;
-    virtual uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
-    virtual uint64_t HashFinal(uint8_t* dst) override;
+    MD5() : SecureHashFunc(id_md5, 128) {}
+    uint64_t HashUpdate(std::FILE* file) override;
+    uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
+    uint64_t HashFinal(uint8_t* dst) override;
 };
 }  // namespace cryp

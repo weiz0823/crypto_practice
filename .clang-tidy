@@ -4,6 +4,7 @@ Checks: "bugprone-*,clang-analyzer-*,clang-diagnostic-*,google-*,misc-*,\
          modernize-*,performance-*,portability-*,readability-,\
          -google-readability-braces-around-statements,\
          -clang-diagnostic-#warningsi,\
-         -clang-diagnostic-#pragma-messages"
+         -clang-diagnostic-#pragma-messages,\
+         -clang-diagnostic-c++17-extensions"
 FormatStyle: file
 ...

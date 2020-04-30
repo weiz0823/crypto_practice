@@ -2,11 +2,21 @@
 #define RSA_HPP
 #include "bigint64.hpp"
 #include "bin2text.hpp"
+#include "oid.hpp"
 #include "serialize.hpp"
 
 namespace cryp {
 using BI = calc::BigInt<calc::uint128_t>;
+
 enum RSAPubKeyFmt { kPKCS, kSSH, kRFC3279, kPEM };
+
+inline const OID id_pkcs_1("pkcs-1", "1.2.840.113549.1.1",
+                           "/ISO/Member-Body/US/RSADSI/PKCS/PKCS-1");
+inline const OID id_rsa_encryption("rsaEncryption", id_pkcs_1, "1",
+                                   "RSAEncryption");
+inline const OID id_rsaes_oaep("id-RSAES-OAEP", id_pkcs_1, "7", "RSAES-OAEP");
+inline const OID id_rsassa_pss("id-RSASSA-PSS", id_pkcs_1, "10", "RSASSA-PSS");
+// Standards: RFC 8017: PKCS #1
 // only partially follow PKCS#1 v2.2, not for serious use
 class RSAPrvKey {
     BI p_, q_, m_, d_;
@@ -27,7 +37,7 @@ class RSAPubKey {
    public:
     RSAPubKey() = default;
     // construct public key from private key
-    inline RSAPubKey(const RSAPrvKey& prv);
+    inline explicit RSAPubKey(const RSAPrvKey& prv);
     RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt);
     void PrintInfo();
     inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text);
