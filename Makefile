@@ -84,6 +84,9 @@ compile/serialize.o: src/serialize.cpp src/serialize.hpp
 compile/hexprint.o: src/hexprint.cpp src/hexprint.hpp src/bin2text.hpp
 	$(CXX) $(CXXFLAGS) -c src/hexprint.cpp -o compile/hexprint.o
 
+compile/mgf1.o: src/mgf1.cpp src/mgf1.hpp src/mgf.hpp
+	$(CXX) $(CXXFLAGS) -c src/mgf1.cpp -o compile/mgf1.o
+
 compile/base64.o: src/base64.cpp src/base64.hpp src/bin2text.hpp
 	$(CXX) $(CXXFLAGS) -c src/base64.cpp -o compile/base64.o
 

@@ -142,7 +142,7 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     prv_key->m_ = calc::GcdBin(--prv_key->p_, --prv_key->q_);
     prv_key->m_ = prv_key->p_ * prv_key->q_ / prv_key->m_;
     // fixed small prime for public key is ok
-    pub_key->e_ = BI(65537);
+    prv_key->e_ = pub_key->e_ = BI(65537);
     calc::ExtGcdBin(pub_key->e_, prv_key->m_, &prv_key->d_, nullptr);
     // extended gcd ensures magnitude small, but don't ensure sign
     if (prv_key->d_.Sign()) prv_key->d_ += prv_key->m_;

@@ -18,9 +18,11 @@ inline const OID id_rsaes_oaep("id-RSAES-OAEP", id_pkcs_1, "7", "RSAES-OAEP");
 inline const OID id_rsassa_pss("id-RSASSA-PSS", id_pkcs_1, "10", "RSASSA-PSS");
 // Standards: RFC 8017: PKCS #1
 // only partially follow PKCS#1 v2.2, not for serious use
+// private key stores information about public key,
+// but isn't inheritance, so that functions don't get mixed up
 class RSAPrvKey {
     BI p_, q_, m_, d_;
-    BI n_;
+    BI n_, e_;
     BI dp_, dq_, qinv_;
 
    public:
@@ -37,7 +39,7 @@ class RSAPubKey {
    public:
     RSAPubKey() = default;
     // construct public key from private key
-    inline explicit RSAPubKey(const RSAPrvKey& prv);
+    explicit RSAPubKey(const RSAPrvKey& prv) : n_(prv.n_), e_(prv.e_) {}
     RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt);
     void PrintInfo();
     inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text);
@@ -62,17 +64,12 @@ inline void RSAPubKey::PrintKey(enum RSAPubKeyFmt fmt,
                                 const Bin2Text& bin2text) {
     bin2text.Print(stdout, Serialize(fmt));
 }
-inline RSAPubKey::RSAPubKey(const RSAPrvKey& prv) : n_(prv.n_) {
-    // e * d = 1 (mod m)
-    calc::ExtGcdBin(prv.d_, prv.m_, &e_, nullptr);
-}
 inline BI RSAPubKey::VerificationPrimitive(const BI& sign) {
     return EncryptPrimitive(sign);
 }
 
 inline bool RSA::KeyMatch(const RSAPubKey& pub_key, const RSAPrvKey& prv_key) {
-    return pub_key.n_ == prv_key.n_ &&
-           pub_key.e_ * prv_key.d_ % prv_key.m_ == BI(1);
+    return pub_key.n_ == prv_key.n_ && pub_key.e_ == prv_key.e_;
 }
 }  // namespace cryp
 
