@@ -51,7 +51,7 @@ endif
 
 CXXFLAGS=-std=c++17
 TARGETS=
-RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart
+RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart print_oid
 DEBUG_TARGETS=rsa_test
 BENCHMARK_TARGETS=
 
@@ -143,6 +143,10 @@ rsa_test: compile/rsa.o src/bigint64.a tests/rsa_test.cpp compile/base64.o compi
 	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o src/bigint64.a \
 		compile/base64.o compile/serialize.o \
 		-o rsa_test
+
+print_oid: tests/print_oid.cpp compile/hexprint.o
+	$(CXX) $(CXXFLAGS) -c tests/print_oid.cpp -o compile/print_oid.o
+	$(CXX) $(CXXFLAGS) compile/print_oid.o compile/hexprint.o -o print_oid
 
 .PHONY: all clean clean-all
 clean:

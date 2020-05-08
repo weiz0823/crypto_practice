@@ -23,8 +23,7 @@ class Base64 : public Bin2Text {
     int SetCharset(const char* str);
     const char* Charset() const;
     void SetPad(char ch);
-    virtual std::string Encode(const uint8_t* data, size_t len) const override;
-    virtual std::vector<uint8_t> Decode(const char* str,
-                                        size_t len) const override;
+    std::string Encode(const uint8_t* data, size_t len) const override;
+    std::vector<uint8_t> Decode(const char* str, size_t len) const override;
 };
 }  // namespace cryp

@@ -48,8 +48,18 @@ BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
         return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
     }
 }
+Bytes RSAPrvKey::Decrypt(const uint8_t* cipher, uint64_t len) {
+    // reserved
+    return Bytes();
+}
+Bytes RSAPrvKey::Sign(const uint8_t* msg, uint64_t len) {
+    // reserved
+    return Bytes();
+}
 
-RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt) {
+RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt)
+    : PKCPublic(id_unknown, 0) {
+    // TODO(): complete other key formats
     switch (fmt) {
         case kSSH:
             const uint8_t *x, *y;
@@ -59,6 +69,7 @@ RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt) {
             e_ = BI(x, y);
             DeserializeString(&x, &y, y);
             n_ = BI(x, y);
+            keylen_ = n_.BitLen();
             break;
         case kPKCS:
             break;
@@ -79,8 +90,8 @@ void RSAPubKey::PrintInfo() {
     std::puts("");
     std::printf("---End RSA-%llu public key---\n", bit_len);
 }
-std::vector<uint8_t> RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
-    std::vector<uint8_t> v;
+Bytes RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
+    Bytes v;
     switch (fmt) {
         case kSSH:
             SerializeString(v, "ssh-rsa", 7);
@@ -104,13 +115,18 @@ BI RSAPubKey::EncryptPrimitive(const BI& msg) {
         return calc::PowMod(msg, e_, n_);
     }
 }
+Bytes RSAPubKey::Encrypt(const uint8_t* msg, uint64_t len) {
+    // reserved
+    return Bytes();
+}
+Bytes RSAPubKey::Verify(const uint8_t* sign, uint64_t len) {
+    // reserved
+    return Bytes();
+}
 
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
                  int verbose) {
-    if (!pub_key) {
-        std::fprintf(stderr, "Error: pub_key is nullptr.\n");
-        return;
-    } else if (!prv_key) {
+    if (!prv_key) {
         std::fprintf(stderr, "Error: prv_key is nullptr.\n");
         return;
     }
@@ -137,12 +153,11 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     if (verbose >= 2)
         std::printf("Got %d-bit (%.2lf) prime q\n", bit_len >> 1,
                     prv_key->q_.log2());
-    // don't forget to copy n_ also to public key
-    pub_key->n_ = prv_key->n_ = prv_key->p_ * prv_key->q_;
+    prv_key->n_ = prv_key->p_ * prv_key->q_;
     prv_key->m_ = calc::GcdBin(--prv_key->p_, --prv_key->q_);
     prv_key->m_ = prv_key->p_ * prv_key->q_ / prv_key->m_;
     // fixed small prime for public key is ok
-    prv_key->e_ = pub_key->e_ = BI(65537);
+    prv_key->e_ = BI(65537);
     calc::ExtGcdBin(pub_key->e_, prv_key->m_, &prv_key->d_, nullptr);
     // extended gcd ensures magnitude small, but don't ensure sign
     if (prv_key->d_.Sign()) prv_key->d_ += prv_key->m_;
@@ -150,6 +165,12 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     prv_key->dq_ = prv_key->d_ % prv_key->q_;
     calc::ExtGcdBin(++prv_key->q_, ++prv_key->p_, &prv_key->qinv_, nullptr);
     if (prv_key->qinv_.Sign()) prv_key->qinv_ += prv_key->p_;
+    prv_key->keylen_ = bit_len;
+    if (pub_key) {
+        pub_key->e_ = prv_key->e_;
+        pub_key->n_ = prv_key->n_;
+        pub_key->keylen_ = bit_len;
+    }
     // output information
     if (verbose > 0) {
         pub_key->PrintInfo();
@@ -172,6 +193,56 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
         rec.Print();
         std::printf("\n        message match? ");
         std::cout << std::boolalpha << (rec == msg) << std::endl;
+    }
+}
+void RSA::SetScheme(RSAScheme scheme, RSAPubKey* pub_key, RSAPrvKey* prv_key) {
+    if (pub_key) pub_key->scheme_ = scheme;
+    if (prv_key) prv_key->scheme_ = scheme;
+    switch (scheme) {
+        case kRSAEncryption:
+            if (pub_key) pub_key->oid_ = id_rsa_encryption;
+            if (prv_key) prv_key->oid_ = id_rsa_encryption;
+            break;
+        case kRSA_MD5:
+            if (pub_key) pub_key->oid_ = id_rsa_md5;
+            if (prv_key) prv_key->oid_ = id_rsa_md5;
+            break;
+        case kRSA_SHA1:
+            if (pub_key) pub_key->oid_ = id_rsa_sha1;
+            if (prv_key) prv_key->oid_ = id_rsa_sha1;
+            break;
+        case kRSA_SHA224:
+            if (pub_key) pub_key->oid_ = id_rsa_sha224;
+            if (prv_key) prv_key->oid_ = id_rsa_sha224;
+            break;
+        case kRSA_SHA256:
+            if (pub_key) pub_key->oid_ = id_rsa_sha256;
+            if (prv_key) prv_key->oid_ = id_rsa_sha256;
+            break;
+        case kRSA_SHA384:
+            if (pub_key) pub_key->oid_ = id_rsa_sha384;
+            if (prv_key) prv_key->oid_ = id_rsa_sha384;
+            break;
+        case kRSA_SHA512:
+            if (pub_key) pub_key->oid_ = id_rsa_sha512;
+            if (prv_key) prv_key->oid_ = id_rsa_sha512;
+            break;
+        case kRSA_SHA512_224:
+            if (pub_key) pub_key->oid_ = id_rsa_sha512_224;
+            if (prv_key) prv_key->oid_ = id_rsa_sha512_224;
+            break;
+        case kRSA_SHA512_256:
+            if (pub_key) pub_key->oid_ = id_rsa_sha512_256;
+            if (prv_key) prv_key->oid_ = id_rsa_sha512_256;
+            break;
+        case kRSAES_OAEP:
+            if (pub_key) pub_key->oid_ = id_rsaes_oaep;
+            if (prv_key) prv_key->oid_ = id_rsaes_oaep;
+            break;
+        case kRSASSA_PSS:
+            if (pub_key) pub_key->oid_ = id_rsassa_pss;
+            if (prv_key) prv_key->oid_ = id_rsassa_pss;
+            break;
     }
 }
 }  // namespace cryp
