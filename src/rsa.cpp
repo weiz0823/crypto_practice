@@ -1,7 +1,7 @@
 #include "rsa.hpp"
 namespace cryp {
 void RSAPrvKey::PrintInfo() {
-    auto bit_len = n_.BitLen();
+    LenT bit_len = n_.BitLen();
     std::printf("---Start RSA-%llu private key---\n", bit_len);
     std::puts("p =");
     p_.Print();
@@ -32,7 +32,8 @@ void RSAPrvKey::PrintInfo() {
 }
 BI RSAPrvKey::DecryptPrimitive(const BI& cipher) {
     if (cipher.Sign() || cipher >= n_) {
-        std::fputs("Error: ciphertext representative out of range.", stderr);
+        std::fputs("Error(RSADP): ciphertext representative out of range.",
+                   stderr);
         return BI(0);
     } else {
         return calc::PowMod(cipher, d_, n_);
@@ -40,7 +41,8 @@ BI RSAPrvKey::DecryptPrimitive(const BI& cipher) {
 }
 BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
     if (cipher.Sign() || cipher >= n_) {
-        std::fputs("Error: ciphertext representative out of range.", stderr);
+        std::fputs("Error(RSADP): ciphertext representative out of range.",
+                   stderr);
         return BI(0);
     } else {
         // m2 = msg % q
@@ -48,21 +50,21 @@ BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
         return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
     }
 }
-Bytes RSAPrvKey::Decrypt(const uint8_t* cipher, uint64_t len) {
+BytesT RSAPrvKey::Decrypt(const ByteT* cipher, LenT len) {
     // reserved
     return Bytes();
 }
-Bytes RSAPrvKey::Sign(const uint8_t* msg, uint64_t len) {
+BytesT RSAPrvKey::Sign(const ByteT* msg, LenT len) {
     // reserved
     return Bytes();
 }
 
-RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt)
+RSAPubKey::RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt)
     : PKCPublic(id_unknown, 0) {
     // TODO(): complete other key formats
     switch (fmt) {
         case kSSH:
-            const uint8_t *x, *y;
+            const ByteT *x, *y;
             // "ssh-rsa"
             DeserializeString(&x, &y, data);
             DeserializeString(&x, &y, y);
@@ -80,7 +82,7 @@ RSAPubKey::RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt)
     }
 }
 void RSAPubKey::PrintInfo() {
-    auto bit_len = n_.BitLen();
+    LenT bit_len = n_.BitLen();
     std::printf("---Start RSA-%llu public key---\n", bit_len);
     std::puts("n = ");
     n_.Print();
@@ -90,8 +92,8 @@ void RSAPubKey::PrintInfo() {
     std::puts("");
     std::printf("---End RSA-%llu public key---\n", bit_len);
 }
-Bytes RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
-    Bytes v;
+BytesT RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
+    BytesT v;
     switch (fmt) {
         case kSSH:
             SerializeString(v, "ssh-rsa", 7);
@@ -109,19 +111,32 @@ Bytes RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
 }
 BI RSAPubKey::EncryptPrimitive(const BI& msg) {
     if (msg.Sign() || msg >= n_) {
-        std::fputs(" Error:message representative out of range.", stderr);
+        std::fputs("Error(RSAEP): message representative out of range.",
+                   stderr);
         return BI(0);
     } else {
         return calc::PowMod(msg, e_, n_);
     }
 }
-Bytes RSAPubKey::Encrypt(const uint8_t* msg, uint64_t len) {
+BytesT RSAPubKey::Encrypt(const ByteT* msg, LenT len) {
     // reserved
-    return Bytes();
+    return BytesT();
 }
-Bytes RSAPubKey::Verify(const uint8_t* sign, uint64_t len) {
+BytesT RSAPubKey::Verify(const ByteT* sign, LenT len) {
     // reserved
-    return Bytes();
+    return BytesT();
+}
+BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len, ByteT* label,
+                              LenT label_len) {
+    if (label_len == 0 || label == nullptr) {
+        label = nullptr;
+        label_len = 0;
+    }
+    if (msg_len > keylen_ - 2 * hash_->HashLen() - 2) {
+        std::fputs("Error(RSAES-OAEP-Encrypt): message too long.\n", stderr);
+        return BytesT();
+    }
+    BytesT rv;
 }
 
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
@@ -242,6 +257,10 @@ void RSA::SetScheme(RSAScheme scheme, RSAPubKey* pub_key, RSAPrvKey* prv_key) {
         case kRSASSA_PSS:
             if (pub_key) pub_key->oid_ = id_rsassa_pss;
             if (prv_key) prv_key->oid_ = id_rsassa_pss;
+            break;
+        default:
+            if (pub_key) pub_key->oid_ = id_unknown;
+            if (prv_key) prv_key->oid_ = id_unknown;
             break;
     }
 }

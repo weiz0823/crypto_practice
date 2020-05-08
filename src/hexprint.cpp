@@ -1,11 +1,11 @@
 #include "hexprint.hpp"
 namespace cryp {
-std::string HexPrint::Encode(const uint8_t* data, size_t len) const {
-    size_t i = 0;
+std::string HexPrint::Encode(const ByteT* data, LenT len) const {
+    LenT i = 0;
     std::string str;
     char buf[10];
     str.reserve(len + len);
-    size_t len0 = len & 3;
+    LenT len0 = len & 3;
     for (; i < len0; ++i) std::sprintf(buf + i + i, fmt_str, data[i]);
     str.append(buf, len0 + len0);
     for (; i < len; i += 4) {
@@ -17,11 +17,11 @@ std::string HexPrint::Encode(const uint8_t* data, size_t len) const {
     }
     return str;
 }
-std::vector<uint8_t> HexPrint::Decode(const char* str, size_t len) const {
-    std::vector<uint8_t> v;
+BytesT HexPrint::Decode(const char* str, LenT len) const {
+    std::vector<ByteT> v;
     v.reserve((len + 1) >> 1);
-    uint8_t num = 0;
-    for (size_t i = 1; i < len; i += 2) {
+    ByteT num = 0;
+    for (LenT i = 1; i < len; i += 2) {
         if (!std::isxdigit(str[i - 1])) return v;
         if (str[i - 1] >= 'a')
             num = str[i - 1] - 'a' + 10;

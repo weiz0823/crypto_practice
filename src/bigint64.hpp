@@ -55,6 +55,7 @@ class BigInt<uint128_t> {
     BigInt& operator=(const BigInt& rhs);
     BigInt& operator=(BigInt&& rhs) noexcept;
     BigInt& GenRandom(uint64_t length, uint8_t fixed = 0);
+    inline BigInt& RandomBits(uint64_t bitlen);
     explicit operator int64_t() const;
     explicit operator bool() const;
     bool Sign() const;
@@ -211,4 +212,8 @@ bool operator>=(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
 bool operator==(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
 bool operator!=(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
 #endif
+inline BigInt<uint128_t>& BigInt<uint128_t>::RandomBits(uint64_t bitlen) {
+    auto q = (bitlen + 127) >> 7, r = bitlen & 127;
+    return GenRandom(q, r ? r : 128);
+}
 }  // namespace calc

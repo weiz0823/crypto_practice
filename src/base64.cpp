@@ -11,7 +11,7 @@ int Base64::SetCharset(const char* str) {
     return 0;
 }
 void Base64::SetPad(const char ch) { pad_ = ch; }
-std::string Base64::Encode(const uint8_t* data, size_t len) const {
+std::string Base64::Encode(const ByteT* data, LenT len) const {
     std::string str;
     str.resize((len + 2) / 3 * 4, '\0');
     uint32_t t;
@@ -39,7 +39,7 @@ std::string Base64::Encode(const uint8_t* data, size_t len) const {
     }
     return str;
 }
-std::vector<uint8_t> Base64::Decode(const char* str, size_t len) const {
+BytesT Base64::Decode(const char* str, LenT len) const {
     std::vector<uint8_t> v;
     v.reserve((len + 3) / 4 * 3);
     uint32_t t;

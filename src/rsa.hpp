@@ -2,6 +2,8 @@
 #define RSA_HPP
 #include "bigint64.hpp"
 #include "bin2text.hpp"
+#include "hash.hpp"
+#include "mgf.hpp"
 #include "oid.hpp"
 #include "pubkeycrypto.hpp"
 #include "serialize.hpp"
@@ -50,7 +52,7 @@ inline const OID id_rsa_sha512_256("sha512-256WithRSAEncryption", id_pkcs_1,
 // only partially follow PKCS#1 v2.2, not for serious use
 // private key stores information about public key,
 // but isn't inheritance, so that functions don't get mixed up
-class RSAPrvKey : public PKCPrivate {
+class RSAPrvKey final : public PKCPrivate {
     BI p_, q_, m_, d_;
     BI n_, e_;
     BI dp_, dq_, qinv_;
@@ -58,8 +60,8 @@ class RSAPrvKey : public PKCPrivate {
 
    public:
     RSAPrvKey() : PKCPrivate(id_unknown, 0) {}
-    Bytes Decrypt(const uint8_t* cipher, uint64_t len) override;
-    Bytes Sign(const uint8_t* msg, uint64_t len) override;
+    BytesT Decrypt(const ByteT* cipher, LenT len) override;
+    BytesT Sign(const ByteT* msg, LenT len) override;
     void PrintInfo();
     BI DecryptPrimitive(const BI& cipher);
     BI DecryptPrimitiveCRT(const BI& cipher);
@@ -67,7 +69,7 @@ class RSAPrvKey : public PKCPrivate {
     friend class RSA;
     friend class RSAPubKey;
 };
-class RSAPubKey : public PKCPublic {
+class RSAPubKey final : public PKCPublic {
     BI n_, e_;
     RSAScheme scheme_;
 
@@ -79,14 +81,16 @@ class RSAPubKey : public PKCPublic {
           n_(prv.n_),
           e_(prv.e_),
           scheme_(prv.scheme_) {}
-    RSAPubKey(const uint8_t* data, enum RSAPubKeyFmt fmt);
-    Bytes Encrypt(const uint8_t* msg, uint64_t len) override;
-    Bytes Verify(const uint8_t* sign, uint64_t len) override;
+    RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt);
+    BytesT Encrypt(const ByteT* msg, LenT len) override;
+    BytesT Verify(const ByteT* sign, LenT len) override;
     void PrintInfo();
     inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text);
-    Bytes Serialize(enum RSAPubKeyFmt fmt);
+    BytesT Serialize(enum RSAPubKeyFmt fmt);
     BI EncryptPrimitive(const BI& msg);
     inline BI VerificationPrimitive(const BI& sign);
+    BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len, ByteT* label,
+                       LenT label_len);
     friend class RSA;
 };
 class RSA {
