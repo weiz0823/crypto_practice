@@ -1,6 +1,6 @@
 #include "rsa.hpp"
 namespace cryp {
-void RSAPrvKey::PrintInfo() {
+void RSAPrvKey::PrintInfo() const {
     LenT bit_len = n_.BitLen();
     std::printf("---Start RSA-%llu private key---\n", bit_len);
     std::puts("p =");
@@ -30,33 +30,67 @@ void RSAPrvKey::PrintInfo() {
     std::puts("");
     std::printf("---End RSA-%llu private key---\n", bit_len);
 }
-BI RSAPrvKey::DecryptPrimitive(const BI& cipher) {
+BI RSAPrvKey::DecryptPrimitive(const BI& cipher) const {
     if (cipher.Sign() || cipher >= n_) {
-        std::fputs("Error(RSADP): ciphertext representative out of range.",
+        std::fputs("Warning(RSADP): ciphertext representative out of range.",
                    stderr);
-        return BI(0);
-    } else {
-        return calc::PowMod(cipher, d_, n_);
     }
+    return calc::PowMod(cipher, d_, n_);
 }
-BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) {
+BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) const {
     if (cipher.Sign() || cipher >= n_) {
         std::fputs("Error(RSADP): ciphertext representative out of range.",
                    stderr);
-        return BI(0);
-    } else {
-        // m2 = msg % q
-        BI m2 = calc::PowMod(cipher, dq_, q_);
-        return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
     }
+    // m2 = msg % q
+    BI m2 = calc::PowMod(cipher, dq_, q_);
+    return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
 }
 BytesT RSAPrvKey::Decrypt(const ByteT* cipher, LenT len) {
     // reserved
-    return Bytes();
+    return BytesT();
 }
 BytesT RSAPrvKey::Sign(const ByteT* msg, LenT len) {
     // reserved
-    return Bytes();
+    return BytesT();
+}
+BytesT RSAPrvKey::OAEPDecrypt(const ByteT* code, LenT code_len,
+                              const ByteT* label, LenT label_len) {
+    if (label_len == 0 || label == nullptr) {
+        label = nullptr;
+        label_len = 0;
+    }
+    LenT k = keylen_ >> 3;
+    if (code_len != k) {
+        std::fputs("Security warning(RSAES-OAEP): ciphertext length incorrect.",
+                   stderr);
+    }
+    BI m = OS2IP(code, code + code_len);
+    m = DecryptPrimitiveCRT(m);
+    BytesT em = I2OSP(m, k);
+    EMEOAEP eme_oaep(hash_, mgf_);
+    BytesT msg;
+    if (eme_oaep.Decode(em.data(), em.size(), label, label_len, &msg)) {
+        std::fputs("Warning(RSAES-OAEP): decrypt error.", stderr);
+    }
+    return msg;
+}
+BytesT RSAPrvKey::PKCS1Decrypt(const ByteT* code, LenT code_len) const {
+    LenT k = keylen_ >> 3;
+    if (code_len != k) {
+        std::fputs(
+            "Security warning(RSAES-PKCS1-v1_5): ciphertext length incorrect.",
+            stderr);
+    }
+    BI m = OS2IP(code, code + code_len);
+    m = DecryptPrimitiveCRT(m);
+    BytesT em = I2OSP(m, k);
+    EMEPKCS1 eme_pkcs1;
+    BytesT msg;
+    if (eme_pkcs1.Decode(em.data(), em.size(), &msg)) {
+        std::fputs("Warning(RSAES-PKCS1-v1_5): decrypt error.", stderr);
+    }
+    return msg;
 }
 
 RSAPubKey::RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt)
@@ -81,7 +115,7 @@ RSAPubKey::RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt)
             break;
     }
 }
-void RSAPubKey::PrintInfo() {
+void RSAPubKey::PrintInfo() const {
     LenT bit_len = n_.BitLen();
     std::printf("---Start RSA-%llu public key---\n", bit_len);
     std::puts("n = ");
@@ -92,7 +126,7 @@ void RSAPubKey::PrintInfo() {
     std::puts("");
     std::printf("---End RSA-%llu public key---\n", bit_len);
 }
-BytesT RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
+BytesT RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) const {
     BytesT v;
     switch (fmt) {
         case kSSH:
@@ -109,14 +143,12 @@ BytesT RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) {
     }
     return v;
 }
-BI RSAPubKey::EncryptPrimitive(const BI& msg) {
+BI RSAPubKey::EncryptPrimitive(const BI& msg) const {
     if (msg.Sign() || msg >= n_) {
-        std::fputs("Error(RSAEP): message representative out of range.",
+        std::fputs("Warning(RSAEP): message representative out of range.",
                    stderr);
-        return BI(0);
-    } else {
-        return calc::PowMod(msg, e_, n_);
     }
+    return calc::PowMod(msg, e_, n_);
 }
 BytesT RSAPubKey::Encrypt(const ByteT* msg, LenT len) {
     // reserved
@@ -126,17 +158,40 @@ BytesT RSAPubKey::Verify(const ByteT* sign, LenT len) {
     // reserved
     return BytesT();
 }
-BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len, ByteT* label,
-                              LenT label_len) {
+BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len,
+                              const ByteT* label, LenT label_len) {
     if (label_len == 0 || label == nullptr) {
         label = nullptr;
         label_len = 0;
     }
-    if (msg_len > keylen_ - 2 * hash_->HashLen() - 2) {
-        std::fputs("Error(RSAES-OAEP-Encrypt): message too long.\n", stderr);
+    EMEOAEP eme_oaep(hash_, mgf_);
+    LenT k = keylen_ >> 3;
+    auto em = new ByteT[k];
+    if (eme_oaep.Encode(msg, msg_len, label, label_len, em, k)) {
+        std::fputs("Error(RSAES-OAEP): encrypt error.", stderr);
+        delete[] em;
         return BytesT();
     }
-    BytesT rv;
+    BI m = OS2IP(em, em + k);
+    m = EncryptPrimitive(m);
+    BytesT v = I2OSP(m, k);
+    delete[] em;
+    return v;
+}
+BytesT RSAPubKey::PKCS1Encrypt(const ByteT* msg, LenT msg_len) const {
+    EMEPKCS1 eme_pkcs1;
+    LenT k = keylen_ >> 3;
+    auto em = new ByteT[k];
+    if (eme_pkcs1.Encode(msg, msg_len, em, k)) {
+        std::fputs("Error(RSAES-PKCS1-v1_5): encrypt error.", stderr);
+        delete[] em;
+        return BytesT();
+    }
+    BI m = OS2IP(em, em + k);
+    m = EncryptPrimitive(m);
+    BytesT v = I2OSP(m, k);
+    delete[] em;
+    return v;
 }
 
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
@@ -210,57 +265,44 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
         std::cout << std::boolalpha << (rec == msg) << std::endl;
     }
 }
-void RSA::SetScheme(RSAScheme scheme, RSAPubKey* pub_key, RSAPrvKey* prv_key) {
-    if (pub_key) pub_key->scheme_ = scheme;
-    if (prv_key) prv_key->scheme_ = scheme;
+void RSAPubKey::SetScheme(RSAScheme scheme) {
+    scheme_ = scheme;
     switch (scheme) {
         case kRSAEncryption:
-            if (pub_key) pub_key->oid_ = id_rsa_encryption;
-            if (prv_key) prv_key->oid_ = id_rsa_encryption;
+            oid_ = id_rsa_encryption;
             break;
         case kRSA_MD5:
-            if (pub_key) pub_key->oid_ = id_rsa_md5;
-            if (prv_key) prv_key->oid_ = id_rsa_md5;
+            oid_ = id_rsa_md5;
             break;
         case kRSA_SHA1:
-            if (pub_key) pub_key->oid_ = id_rsa_sha1;
-            if (prv_key) prv_key->oid_ = id_rsa_sha1;
+            oid_ = id_rsa_sha1;
             break;
         case kRSA_SHA224:
-            if (pub_key) pub_key->oid_ = id_rsa_sha224;
-            if (prv_key) prv_key->oid_ = id_rsa_sha224;
+            oid_ = id_rsa_sha224;
             break;
         case kRSA_SHA256:
-            if (pub_key) pub_key->oid_ = id_rsa_sha256;
-            if (prv_key) prv_key->oid_ = id_rsa_sha256;
+            oid_ = id_rsa_sha256;
             break;
         case kRSA_SHA384:
-            if (pub_key) pub_key->oid_ = id_rsa_sha384;
-            if (prv_key) prv_key->oid_ = id_rsa_sha384;
+            oid_ = id_rsa_sha384;
             break;
         case kRSA_SHA512:
-            if (pub_key) pub_key->oid_ = id_rsa_sha512;
-            if (prv_key) prv_key->oid_ = id_rsa_sha512;
+            oid_ = id_rsa_sha512;
             break;
         case kRSA_SHA512_224:
-            if (pub_key) pub_key->oid_ = id_rsa_sha512_224;
-            if (prv_key) prv_key->oid_ = id_rsa_sha512_224;
+            oid_ = id_rsa_sha512_224;
             break;
         case kRSA_SHA512_256:
-            if (pub_key) pub_key->oid_ = id_rsa_sha512_256;
-            if (prv_key) prv_key->oid_ = id_rsa_sha512_256;
+            oid_ = id_rsa_sha512_256;
             break;
         case kRSAES_OAEP:
-            if (pub_key) pub_key->oid_ = id_rsaes_oaep;
-            if (prv_key) prv_key->oid_ = id_rsaes_oaep;
+            oid_ = id_rsaes_oaep;
             break;
         case kRSASSA_PSS:
-            if (pub_key) pub_key->oid_ = id_rsassa_pss;
-            if (prv_key) prv_key->oid_ = id_rsassa_pss;
+            oid_ = id_rsassa_pss;
             break;
         default:
-            if (pub_key) pub_key->oid_ = id_unknown;
-            if (prv_key) prv_key->oid_ = id_unknown;
+            oid_ = id_unknown;
             break;
     }
 }

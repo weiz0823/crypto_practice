@@ -1,10 +1,9 @@
 #pragma once
-#include "bigint64.hpp"
 #include "hash.hpp"
 #include "mgf.hpp"
 #include "msg_encode.hpp"
+#include "random_engine.hpp"
 namespace cryp {
-using BI = calc::BigInt<calc::uint128_t>;
 class EMEOAEP final : public MsgEncode {
     SecureHashFunc* hash_;
     MaskGenFunc* mgf_;

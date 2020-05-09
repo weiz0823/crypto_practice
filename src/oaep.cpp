@@ -6,16 +6,16 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
         std::fputs(
             "Error(EMEOAEP::Encode): object parameters not properly set.",
             stderr);
-        return -1;
+        return 1;
     }
     if (label == nullptr || label_len == 0) {
         label = nullptr;
         label_len = 0;
     }
     auto hlen = hash_->HashLen() >> 3;
-    if (msg_len > dst_len - 2 * hlen - 2) {
+    if (msg_len + 2 * hlen + 2 > dst_len) {
         std::fputs("Error(EMEOAEP::Encode): message too long.", stderr);
-        return -2;
+        return 2;
     }
     LenT pos = dst_len - hlen - 1;
     ByteT* db = dst + 1 + hlen;
@@ -24,9 +24,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
     pos -= msg_len;
     db[pos - 1] = 1;
     std::copy(msg, msg + msg_len, db + pos);
-    BI rnd;
-    rnd.GenRandom(((hlen << 3) + 127) >> 7);
-    BytesT seed = rnd.Serialize();
+    BytesT seed;
     if (seed.size() > hlen) {
         std::copy(seed.end() - hlen, seed.end(), dst + 1);
     } else if (seed.size() < hlen) {
@@ -35,6 +33,8 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
         std::fill(dst + 1, dst + pos, 0);
     }
     dst[0] = 0;
+    std::uniform_int_distribution<uint8_t> rnd;
+    for (LenT i = 1; i <= hlen; ++i) dst[i] = rnd(g_rnd_engine32);
     auto mask = new ByteT[dst_len];
     pos = dst_len - hlen - 1;
     mgf_->Generate(dst + 1, hlen, mask, pos);
@@ -58,6 +58,10 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
     }
     auto hlen = hash_->HashLen() >> 3;
     int rv = 0;  // bit mask return value
+    if (src_len < 2 * hlen + 2) {
+        std::fputs("Error(EMEOAEP::Decode): encoded text too short.", stderr);
+        return 8;
+    }
     if (encoded[0]) {
         std::fputs(
             "Security warning(EMEOAEP::Decode): first byte of the encoded "

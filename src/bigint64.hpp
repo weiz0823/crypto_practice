@@ -73,7 +73,7 @@ class BigInt<uint128_t> {
     // input from big-endian data
     explicit BigInt(const uint8_t* data, size_t size);
     inline explicit BigInt(const uint8_t* data, const uint8_t* end)
-        : BigInt(data, end - data) {}
+        : BigInt(data, end > data ? end - data : 0) {}
     // two's complement octet string (bytes), big-endian (network flow style)
     std::vector<uint8_t> Serialize() const;
 

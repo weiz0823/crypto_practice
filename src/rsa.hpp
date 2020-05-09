@@ -1,10 +1,12 @@
 #ifndef RSA_HPP
 #define RSA_HPP
-#include "bigint64.hpp"
 #include "bin2text.hpp"
+#include "bytes_mpint.hpp"
 #include "hash.hpp"
 #include "mgf.hpp"
+#include "oaep.hpp"
 #include "oid.hpp"
+#include "pkcs1_encode.hpp"
 #include "pubkeycrypto.hpp"
 #include "serialize.hpp"
 
@@ -57,40 +59,60 @@ class RSAPrvKey final : public PKCPrivate {
     BI n_, e_;
     BI dp_, dq_, qinv_;
     RSAScheme scheme_;
+    SecureHashFunc* hash_;
+    MaskGenFunc* mgf_;
 
    public:
-    RSAPrvKey() : PKCPrivate(id_unknown, 0) {}
+    explicit RSAPrvKey(SecureHashFunc* hash = nullptr,
+                       MaskGenFunc* mgf = nullptr)
+        : PKCPrivate(id_unknown, 0), hash_(hash), mgf_(mgf) {}
+    inline void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
+    inline void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
+    void SetScheme(RSAScheme scheme);
     BytesT Decrypt(const ByteT* cipher, LenT len) override;
     BytesT Sign(const ByteT* msg, LenT len) override;
-    void PrintInfo();
-    BI DecryptPrimitive(const BI& cipher);
-    BI DecryptPrimitiveCRT(const BI& cipher);
-    inline BI SignaturePrimitive(const BI& msg);
+    void PrintInfo() const;
+    BI DecryptPrimitive(const BI& cipher) const;
+    BI DecryptPrimitiveCRT(const BI& cipher) const;
+    inline BI SignaturePrimitive(const BI& msg) const;
+    BytesT OAEPDecrypt(const ByteT* code, LenT code_len, const ByteT* label,
+                       LenT label_len);
+    BytesT PKCS1Decrypt(const ByteT* code, LenT code_len) const;
     friend class RSA;
     friend class RSAPubKey;
 };
 class RSAPubKey final : public PKCPublic {
     BI n_, e_;
     RSAScheme scheme_;
+    SecureHashFunc* hash_;
+    MaskGenFunc* mgf_;
 
    public:
-    RSAPubKey() : PKCPublic(id_unknown, 0) {}
+    explicit RSAPubKey(SecureHashFunc* hash = nullptr,
+                       MaskGenFunc* mgf = nullptr)
+        : PKCPublic(id_unknown, 0), hash_(hash), mgf_(mgf) {}
+    inline void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
+    inline void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
     // construct public key from private key
     explicit RSAPubKey(const RSAPrvKey& prv)
         : PKCPublic(prv.oid_, prv.keylen_),
           n_(prv.n_),
           e_(prv.e_),
-          scheme_(prv.scheme_) {}
+          scheme_(prv.scheme_),
+          hash_(prv.hash_),
+          mgf_(prv.mgf_) {}
     RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt);
     BytesT Encrypt(const ByteT* msg, LenT len) override;
     BytesT Verify(const ByteT* sign, LenT len) override;
-    void PrintInfo();
-    inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text);
-    BytesT Serialize(enum RSAPubKeyFmt fmt);
-    BI EncryptPrimitive(const BI& msg);
-    inline BI VerificationPrimitive(const BI& sign);
-    BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len, ByteT* label,
+    void SetScheme(RSAScheme scheme);
+    void PrintInfo() const;
+    inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text) const;
+    BytesT Serialize(enum RSAPubKeyFmt fmt) const;
+    BI EncryptPrimitive(const BI& msg) const;
+    inline BI VerificationPrimitive(const BI& sign) const;
+    BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len, const ByteT* label,
                        LenT label_len);
+    BytesT PKCS1Encrypt(const ByteT* msg, LenT msg_len) const;
     friend class RSA;
 };
 class RSA {
@@ -99,19 +121,17 @@ class RSA {
                        int bit_len = 1024, int verbose = 1);
     static inline bool KeyMatch(const RSAPubKey& pub_key,
                                 const RSAPrvKey& prv_key);
-    static void SetScheme(RSAScheme scheme, RSAPubKey* pub_key,
-                          RSAPrvKey* prv_key);
 };
 
-inline BI RSAPrvKey::SignaturePrimitive(const BI& msg) {
+inline BI RSAPrvKey::SignaturePrimitive(const BI& msg) const {
     return DecryptPrimitiveCRT(msg);
 }
 
 inline void RSAPubKey::PrintKey(enum RSAPubKeyFmt fmt,
-                                const Bin2Text& bin2text) {
+                                const Bin2Text& bin2text) const {
     bin2text.Print(stdout, Serialize(fmt));
 }
-inline BI RSAPubKey::VerificationPrimitive(const BI& sign) {
+inline BI RSAPubKey::VerificationPrimitive(const BI& sign) const {
     return EncryptPrimitive(sign);
 }
 
