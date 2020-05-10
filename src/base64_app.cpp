@@ -1,7 +1,8 @@
 #include <iostream>
 #include <vector>
 
-#include "../src/base64.hpp"
+#include "base64.hpp"
+#include "half_text_print.hpp"
 int main(int argc, char* argv[]) {
     cryp::Base64 base64;
     if (argc <= 1 || (argv[1][0] != 'e' && argv[1][0] != 'd')) {
@@ -31,11 +32,7 @@ int main(int argc, char* argv[]) {
         for (auto x : v) std::printf("%02hhx", x);
         std::puts("");
         std::puts("Text assuming ascii, space for non-printable characters:");
-        for (auto x : v)
-            if (x == ' ' || std::isprint(x))
-                std::putchar(x);
-            else
-                std::putchar(' ');
+        cryp::HalfTextPrint(v);
         std::puts("");
     }
     return 0;

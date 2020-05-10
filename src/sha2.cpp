@@ -84,8 +84,9 @@ uint64_t SHA2_32::HashFinal(uint8_t* dst) {
         HashProcess();
     }
     GetHash(dst);
+    len_tmp = msg_len_;
     Reset();
-    return msg_len_;
+    return len_tmp;
 }
 
 void SHA2_64::HashProcess() {
@@ -174,8 +175,9 @@ uint64_t SHA2_64::HashFinal(uint8_t* dst) {
         HashProcess();
     }
     GetHash(dst);
+    len_tmp = msg_len_;
     Reset();
-    return msg_len_;
+    return len_tmp;
 }
 
 void SHA224::GetHash(uint8_t* dst) {

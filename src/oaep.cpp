@@ -4,7 +4,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
                     LenT label_len, ByteT* dst, LenT dst_len) {
     if (!hash_ || !mgf_) {
         std::fputs(
-            "Error(EMEOAEP::Encode): object parameters not properly set.",
+            "Error(EMEOAEP::Encode): object parameters not properly set.\n",
             stderr);
         return 1;
     }
@@ -14,7 +14,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
     }
     auto hlen = hash_->HashLen() >> 3;
     if (msg_len + 2 * hlen + 2 > dst_len) {
-        std::fputs("Error(EMEOAEP::Encode): message too long.", stderr);
+        std::fputs("Error(EMEOAEP::Encode): message too long.\n", stderr);
         return 2;
     }
     LenT pos = dst_len - hlen - 1;
@@ -24,14 +24,6 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
     pos -= msg_len;
     db[pos - 1] = 1;
     std::copy(msg, msg + msg_len, db + pos);
-    BytesT seed;
-    if (seed.size() > hlen) {
-        std::copy(seed.end() - hlen, seed.end(), dst + 1);
-    } else if (seed.size() < hlen) {
-        pos = 1 + hlen - seed.size();
-        std::copy(seed.begin(), seed.end(), dst + pos);
-        std::fill(dst + 1, dst + pos, 0);
-    }
     dst[0] = 0;
     std::uniform_int_distribution<uint8_t> rnd;
     for (LenT i = 1; i <= hlen; ++i) dst[i] = rnd(g_rnd_engine32);
@@ -48,7 +40,7 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
                     LenT label_len, BytesT* dst) {
     if (!hash_ || !mgf_) {
         std::fputs(
-            "Error(EMEOAEP::Decode): object parameters not properly set.",
+            "Error(EMEOAEP::Decode): object parameters not properly set.\n",
             stderr);
         return -1;
     }
@@ -59,13 +51,13 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
     auto hlen = hash_->HashLen() >> 3;
     int rv = 0;  // bit mask return value
     if (src_len < 2 * hlen + 2) {
-        std::fputs("Error(EMEOAEP::Decode): encoded text too short.", stderr);
+        std::fputs("Error(EMEOAEP::Decode): encoded text too short.\n", stderr);
         return 8;
     }
     if (encoded[0]) {
         std::fputs(
             "Security warning(EMEOAEP::Decode): first byte of the encoded "
-            "message is not zero.",
+            "message is not zero.\n",
             stderr);
         rv |= 1;
     }
@@ -83,7 +75,7 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
     for (i = 0; i < hlen; ++i) {
         if (db[i] != mask[i]) {
             std::fputs(
-                "Security warning(EMEOAEP::Decode): label hash incorrect.",
+                "Security warning(EMEOAEP::Decode): label hash incorrect.\n",
                 stderr);
             rv |= 2;
             break;
@@ -93,7 +85,8 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
     while (i < db_len && !db[i]) ++i;
     if (i >= db_len || db[i] != 1) {
         std::fputs(
-            "Security warning(EMEOAEP::Decode): end-of-padding 0x01 not found.",
+            "Security warning(EMEOAEP::Decode): end-of-padding 0x01 not "
+            "found.\n",
             stderr);
         rv |= 4;
         i = db_len - 1;
@@ -103,7 +96,7 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
         dst->clear();
     } else {
         dst->resize(db_len - i);
-        std::copy(db + i, db + db_len, dst);
+        std::copy(db + i, db + db_len, dst->begin());
     }
     delete[] src;
     delete[] mask;

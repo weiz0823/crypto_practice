@@ -32,19 +32,21 @@ void RSAPrvKey::PrintInfo() const {
 }
 BI RSAPrvKey::DecryptPrimitive(const BI& cipher) const {
     if (cipher.Sign() || cipher >= n_) {
-        std::fputs("Warning(RSADP): ciphertext representative out of range.",
+        std::fputs("Warning(RSADP): ciphertext representative out of range.\n",
                    stderr);
     }
     return calc::PowMod(cipher, d_, n_);
 }
 BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) const {
     if (cipher.Sign() || cipher >= n_) {
-        std::fputs("Error(RSADP): ciphertext representative out of range.",
+        std::fputs("Error(RSADP): ciphertext representative out of range.\n",
                    stderr);
     }
     // m2 = msg % q
     BI m2 = calc::PowMod(cipher, dq_, q_);
-    return m2 + q_ * ((calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_);
+    BI tmp = (calc::PowMod(cipher, dp_, p_) - m2) * qinv_ % p_;
+    if (tmp.Sign()) tmp += p_;
+    return std::move(tmp) * q_ + std::move(m2);
 }
 BytesT RSAPrvKey::Decrypt(const ByteT* cipher, LenT len) {
     // reserved
@@ -62,8 +64,9 @@ BytesT RSAPrvKey::OAEPDecrypt(const ByteT* code, LenT code_len,
     }
     LenT k = keylen_ >> 3;
     if (code_len != k) {
-        std::fputs("Security warning(RSAES-OAEP): ciphertext length incorrect.",
-                   stderr);
+        std::fputs(
+            "Security warning(RSAES-OAEP): ciphertext length incorrect.\n",
+            stderr);
     }
     BI m = OS2IP(code, code + code_len);
     m = DecryptPrimitiveCRT(m);
@@ -71,7 +74,7 @@ BytesT RSAPrvKey::OAEPDecrypt(const ByteT* code, LenT code_len,
     EMEOAEP eme_oaep(hash_, mgf_);
     BytesT msg;
     if (eme_oaep.Decode(em.data(), em.size(), label, label_len, &msg)) {
-        std::fputs("Warning(RSAES-OAEP): decrypt error.", stderr);
+        std::fputs("Warning(RSAES-OAEP): decrypt error.\n", stderr);
     }
     return msg;
 }
@@ -79,7 +82,8 @@ BytesT RSAPrvKey::PKCS1Decrypt(const ByteT* code, LenT code_len) const {
     LenT k = keylen_ >> 3;
     if (code_len != k) {
         std::fputs(
-            "Security warning(RSAES-PKCS1-v1_5): ciphertext length incorrect.",
+            "Security warning(RSAES-PKCS1-v1_5): ciphertext length "
+            "incorrect.\n",
             stderr);
     }
     BI m = OS2IP(code, code + code_len);
@@ -88,7 +92,7 @@ BytesT RSAPrvKey::PKCS1Decrypt(const ByteT* code, LenT code_len) const {
     EMEPKCS1 eme_pkcs1;
     BytesT msg;
     if (eme_pkcs1.Decode(em.data(), em.size(), &msg)) {
-        std::fputs("Warning(RSAES-PKCS1-v1_5): decrypt error.", stderr);
+        std::fputs("Warning(RSAES-PKCS1-v1_5): decrypt error.\n", stderr);
     }
     return msg;
 }
@@ -145,7 +149,7 @@ BytesT RSAPubKey::Serialize(enum RSAPubKeyFmt fmt) const {
 }
 BI RSAPubKey::EncryptPrimitive(const BI& msg) const {
     if (msg.Sign() || msg >= n_) {
-        std::fputs("Warning(RSAEP): message representative out of range.",
+        std::fputs("Warning(RSAEP): message representative out of range.\n",
                    stderr);
     }
     return calc::PowMod(msg, e_, n_);
@@ -168,7 +172,7 @@ BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len,
     LenT k = keylen_ >> 3;
     auto em = new ByteT[k];
     if (eme_oaep.Encode(msg, msg_len, label, label_len, em, k)) {
-        std::fputs("Error(RSAES-OAEP): encrypt error.", stderr);
+        std::fputs("Error(RSAES-OAEP): encrypt error.\n", stderr);
         delete[] em;
         return BytesT();
     }
@@ -183,7 +187,7 @@ BytesT RSAPubKey::PKCS1Encrypt(const ByteT* msg, LenT msg_len) const {
     LenT k = keylen_ >> 3;
     auto em = new ByteT[k];
     if (eme_pkcs1.Encode(msg, msg_len, em, k)) {
-        std::fputs("Error(RSAES-PKCS1-v1_5): encrypt error.", stderr);
+        std::fputs("Error(RSAES-PKCS1-v1_5): encrypt error.\n", stderr);
         delete[] em;
         return BytesT();
     }
@@ -194,6 +198,7 @@ BytesT RSAPubKey::PKCS1Encrypt(const ByteT* msg, LenT msg_len) const {
     return v;
 }
 
+// must assign private key, may assign public key
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
                  int verbose) {
     if (!prv_key) {
@@ -228,7 +233,7 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     prv_key->m_ = prv_key->p_ * prv_key->q_ / prv_key->m_;
     // fixed small prime for public key is ok
     prv_key->e_ = BI(65537);
-    calc::ExtGcdBin(pub_key->e_, prv_key->m_, &prv_key->d_, nullptr);
+    calc::ExtGcdBin(prv_key->e_, prv_key->m_, &prv_key->d_, nullptr);
     // extended gcd ensures magnitude small, but don't ensure sign
     if (prv_key->d_.Sign()) prv_key->d_ += prv_key->m_;
     prv_key->dp_ = prv_key->d_ % prv_key->p_;
@@ -236,33 +241,31 @@ void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
     calc::ExtGcdBin(++prv_key->q_, ++prv_key->p_, &prv_key->qinv_, nullptr);
     if (prv_key->qinv_.Sign()) prv_key->qinv_ += prv_key->p_;
     prv_key->keylen_ = bit_len;
+    if (verbose > 0) prv_key->PrintInfo();
+    // output information
     if (pub_key) {
         pub_key->e_ = prv_key->e_;
         pub_key->n_ = prv_key->n_;
         pub_key->keylen_ = bit_len;
-    }
-    // output information
-    if (verbose > 0) {
-        pub_key->PrintInfo();
-        prv_key->PrintInfo();
-    }
-    if (verbose >= 3) {
-        std::printf("Verify:\n    message: ");
-        BI msg;
-        msg.GenRandom(1).Print();
-        std::printf("\n    ciphertext: ");
-        BI cipher = pub_key->EncryptPrimitive(msg);
-        cipher.Print();
-        std::printf("\n    recover message: ");
-        BI rec = prv_key->DecryptPrimitive(cipher);
-        rec.Print();
-        std::printf("\n        message match? ");
-        std::cout << std::boolalpha << (rec == msg) << std::endl;
-        std::printf("    recover message (using CRT): ");
-        rec = prv_key->DecryptPrimitiveCRT(cipher);
-        rec.Print();
-        std::printf("\n        message match? ");
-        std::cout << std::boolalpha << (rec == msg) << std::endl;
+        if (verbose > 0) pub_key->PrintInfo();
+        if (verbose >= 3) {
+            std::printf("Verify:\n    message: ");
+            BI msg;
+            msg.GenRandom(1).Print();
+            std::printf("\n    ciphertext: ");
+            BI cipher = pub_key->EncryptPrimitive(msg);
+            cipher.Print();
+            std::printf("\n    recover message: ");
+            BI rec = prv_key->DecryptPrimitive(cipher);
+            rec.Print();
+            std::printf("\n        message match? ");
+            std::cout << std::boolalpha << (rec == msg) << std::endl;
+            std::printf("    recover message (using CRT): ");
+            rec = prv_key->DecryptPrimitiveCRT(cipher);
+            rec.Print();
+            std::printf("\n        message match? ");
+            std::cout << std::boolalpha << (rec == msg) << std::endl;
+        }
     }
 }
 void RSAPubKey::SetScheme(RSAScheme scheme) {

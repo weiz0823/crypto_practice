@@ -119,13 +119,13 @@ uint64_t SHA3Var<CAP, PAD>::HashFinal(uint8_t* dst) {
         msg_[chunk_len_] = PAD | 0x80;
     }
     HashProcess();
-    uint64_t tmp_len = msg_len_;
     GetHash(dst);
     // reset
+    uint64_t len_tmp = msg_len_;
     std::memset(a_, 0, sizeof(a_));
     msg_len_ = 0;
     chunk_len_ = 0;
-    return tmp_len;
+    return len_tmp;
 }
 template <uint32_t CAP, uint8_t PAD>
 void SHA3Var<CAP, PAD>::GetHash(uint8_t* dst) {

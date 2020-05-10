@@ -2,7 +2,7 @@
 namespace cryp {
 int EMEPKCS1::Encode(const ByteT* msg, LenT msg_len, ByteT* dst, LenT dst_len) {
     if (msg_len + 11 > dst_len) {
-        std::fputs("Error(EMEPKCS1::Encode): message too long.", stderr);
+        std::fputs("Error(EMEPKCS1::Encode): message too long.\n", stderr);
         return 1;
     }
     dst[0] = 0;
@@ -17,26 +17,28 @@ int EMEPKCS1::Encode(const ByteT* msg, LenT msg_len, ByteT* dst, LenT dst_len) {
 }
 int EMEPKCS1::Decode(const ByteT* encoded, LenT src_len, BytesT* dst) {
     if (src_len < 11) {
-        std::fputs("Error(EMEPKCS1::Decode): encoded text too short.", stderr);
+        std::fputs("Error(EMEPKCS1::Decode): encoded text too short.\n",
+                   stderr);
         return 1;
     }
     int rv = 0;
     if (encoded[0] != 0 || encoded[1] != 2) {
-        std::fputs("Security warning(EMEPKCS1::Decode): prefix incorrect.",
+        std::fputs("Security warning(EMEPKCS1::Decode): prefix incorrect.\n",
                    stderr);
         rv |= 2;
     }
     LenT i = 2;
     while (i < src_len && encoded[i]) ++i;
     if (i >= src_len) {
-        std::fputs("Security warning(EMEPKCS1::Decode): no end of padding.",
+        std::fputs("Security warning(EMEPKCS1::Decode): no end of padding.\n",
                    stderr);
         rv |= 4;
         dst->clear();
     } else {
         if (i < 10) {
-            std::fputs("Security warning(EMEPKCS1::Decode): padding too short.",
-                       stderr);
+            std::fputs(
+                "Security warning(EMEPKCS1::Decode): padding too short.\n",
+                stderr);
             rv |= 8;
         }
         ++i;

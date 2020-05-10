@@ -114,6 +114,9 @@ uint64_t SHA1::HashFinal(uint8_t* dst) {
     c0_ = 0x98badcfe;
     d0_ = 0x10325476;
     e0_ = 0xc3d2e1f0;
-    return msg_len_;
+    len_tmp = msg_len_;
+    msg_len_ = 0;
+    chunk_len_ = 0;
+    return len_tmp;
 }
 }  // namespace cryp

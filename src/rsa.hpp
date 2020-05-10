@@ -75,8 +75,8 @@ class RSAPrvKey final : public PKCPrivate {
     BI DecryptPrimitive(const BI& cipher) const;
     BI DecryptPrimitiveCRT(const BI& cipher) const;
     inline BI SignaturePrimitive(const BI& msg) const;
-    BytesT OAEPDecrypt(const ByteT* code, LenT code_len, const ByteT* label,
-                       LenT label_len);
+    BytesT OAEPDecrypt(const ByteT* code, LenT code_len,
+                       const ByteT* label = nullptr, LenT label_len = 0);
     BytesT PKCS1Decrypt(const ByteT* code, LenT code_len) const;
     friend class RSA;
     friend class RSAPubKey;
@@ -110,8 +110,8 @@ class RSAPubKey final : public PKCPublic {
     BytesT Serialize(enum RSAPubKeyFmt fmt) const;
     BI EncryptPrimitive(const BI& msg) const;
     inline BI VerificationPrimitive(const BI& sign) const;
-    BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len, const ByteT* label,
-                       LenT label_len);
+    BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len,
+                       const ByteT* label = nullptr, LenT label_len = 0);
     BytesT PKCS1Encrypt(const ByteT* msg, LenT msg_len) const;
     friend class RSA;
 };

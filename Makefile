@@ -52,7 +52,7 @@ endif
 CXXFLAGS=-std=c++17
 TARGETS=
 RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart print_oid
-DEBUG_TARGETS=rsa_test
+DEBUG_TARGETS=rsa_test rsa_keygen_test
 BENCHMARK_TARGETS=
 
 
@@ -138,11 +138,28 @@ randomart: src/randomart_app.cpp compile/randomart.o
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c src/rsa.cpp -o compile/rsa.o
 
-rsa_test: compile/rsa.o src/bigint64.a tests/rsa_test.cpp compile/base64.o compile/serialize.o
+compile/oaep.o: src/oaep.cpp src/oaep.hpp
+	$(CXX) $(CXXFLAGS) -c src/oaep.cpp -o compile/oaep.o
+
+compile/pkcs1_encode.o: src/pkcs1_encode.cpp src/pkcs1_encode.hpp
+	$(CXX) $(CXXFLAGS) -c src/pkcs1_encode.cpp -o compile/pkcs1_encode.o
+
+rsa_test: compile/rsa.o src/bigint64.a compile/hexprint.o compile/serialize.o \
+	tests/rsa_test.cpp compile/oaep.o compile/pkcs1_encode.o \
+	compile/sha1.o compile/mgf1.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) -c tests/rsa_test.cpp -o compile/rsa_test.o
 	$(CXX) $(CXXFLAGS) compile/rsa_test.o compile/rsa.o src/bigint64.a \
+		compile/hexprint.o compile/serialize.o \
+		compile/sha1.o compile/mgf1.o compile/array_stream.o \
+		compile/oaep.o compile/pkcs1_encode.o -o rsa_test
+
+rsa_keygen_test: compile/rsa.o src/bigint64.a tests/rsa_keygen_test.cpp \
+	compile/base64.o compile/serialize.o compile/oaep.o compile/pkcs1_encode.o
+	$(CXX) $(CXXFLAGS) -c tests/rsa_keygen_test.cpp -o compile/rsa_keygen_test.o
+	$(CXX) $(CXXFLAGS) compile/rsa_keygen_test.o compile/rsa.o src/bigint64.a \
 		compile/base64.o compile/serialize.o \
-		-o rsa_test
+		compile/oaep.o compile/pkcs1_encode.o \
+		-o rsa_keygen_test
 
 print_oid: tests/print_oid.cpp compile/hexprint.o
 	$(CXX) $(CXXFLAGS) -c tests/print_oid.cpp -o compile/print_oid.o
