@@ -10,13 +10,18 @@ using cryp::ByteT;
 using cryp::LenT;
 int main() {
     LenT wrap_len = 80;
+    LenT key_len = 1024;
     cryp::SHA1 sha1;
     cryp::HexPrint hex_print;
     cryp::MGF1 mgf1(&sha1);
     cryp::RSAPubKey pub_key(&sha1, &mgf1);
     cryp::RSAPrvKey prv_key(&sha1, &mgf1);
-    cryp::RSA::KeyGen(&pub_key, &prv_key, 1024, 0);
-    std::puts("RSA Key generation ends.");
+    auto start_time = std::chrono::high_resolution_clock::now();
+    cryp::RSA::KeyGen(&pub_key, &prv_key, key_len, 0);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto time_dur = end_time - start_time;
+    std::printf("RSA-%llu Key generation ends. Costs %.3lfs.\n", key_len,
+                time_dur.count() / 1e9);
     std::string str;
     std::printf("Please input message: ");
     std::getline(std::cin, str);

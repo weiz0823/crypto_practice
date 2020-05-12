@@ -15,16 +15,15 @@ class Bin2Text {
             auto i = wrap_len;
             for (; i < str.size(); i += wrap_len) {
                 std::fwrite(str.data() + i - wrap_len, 1, wrap_len, f);
-                std::fputc(' ', f);
+                std::fputc('\n', f);
             }
             i -= wrap_len;
             if (i < str.size())
                 std::fwrite(str.data() + i, 1, str.size() - i, f);
-            std::fputc(' ', f);
         } else {
             std::fwrite(str.data(), 1, str.size(), f);
-            std::fputc(' ', f);
         }
+        std::fputc('\n', f);
     }
     inline void Print(FILE* f, const BytesT& v, LenT wrap_len = 0) const {
         Print(f, v.data(), v.size(), wrap_len);
