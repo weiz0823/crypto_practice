@@ -38,9 +38,11 @@ class BigInt<uint128_t> {
     // inline static std::uniform_int_distribution<uint64_t> rand_;
 
     // bigint64_div.cpp
-    uint64_t DivDCore(const BigInt& rhs, uint64_t v1, uint64_t v2, uint64_t u1h,
-                      uint64_t u1l, uint64_t u2, uint64_t bias, bool half_more);
-    void DivRNormal(const BigInt& rhs, BigInt* mod = nullptr);
+    static uint64_t DivDCore(BigInt& lhs, const BigInt& rhs, uint64_t v1,
+                             uint64_t v2, uint64_t u1h, uint64_t u1l,
+                             uint64_t u2, uint64_t bias, bool half_more);
+    static BigInt<uint128_t> DivRNormal(BigInt lhs, const BigInt& rhs,
+                                        BigInt* mod = nullptr);
 
     // bigint64_mul.cpp
     BigInt& RMNTMulEqGiven(const int64_t* src, uint64_t n, uint64_t rlen);
@@ -55,7 +57,7 @@ class BigInt<uint128_t> {
     BigInt& operator=(const BigInt& rhs);
     BigInt& operator=(BigInt&& rhs) noexcept;
     BigInt& GenRandom(uint64_t length, uint8_t fixed = 0);
-    inline BigInt& RandomBits(uint64_t bitlen);
+    BigInt& RandomBits(uint64_t bitlen);
     explicit operator int64_t() const;
     explicit operator bool() const;
     bool Sign() const;
@@ -72,7 +74,7 @@ class BigInt<uint128_t> {
     uint64_t BitLen() const;
     // input from big-endian data
     explicit BigInt(const uint8_t* data, size_t size);
-    inline explicit BigInt(const uint8_t* data, const uint8_t* end)
+    explicit BigInt(const uint8_t* data, const uint8_t* end)
         : BigInt(data, end > data ? end - data : 0) {}
     // two's complement octet string (bytes), big-endian (network flow style)
     std::vector<uint8_t> Serialize() const;
@@ -121,8 +123,7 @@ class BigInt<uint128_t> {
 #endif
 
     // bigint64_div.cpp
-    // note this is not unsigned, to ensure the sign of remain is set
-    // correctly
+    // note this is signed, to ensure the sign of remain is set correctly
     BigInt& DivEq64(int64_t rhs, int64_t* remain = nullptr);
     BigInt& operator/=(int64_t rhs);
     BigInt& operator%=(int64_t rhs);
@@ -132,6 +133,10 @@ class BigInt<uint128_t> {
     BigInt& DivEq(const BigInt& rhs, BigInt* mod = nullptr);
     // recursive
     BigInt& DivEqR(const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt DivDBase(BigInt lhs, const BigInt& rhs,
+                           BigInt* mod = nullptr);
+    static BigInt DivRBase(BigInt lhs, const BigInt& rhs,
+                           BigInt* mod = nullptr);
 
     // bigint64_mul.cpp
     BigInt& operator*=(uint64_t rhs);
@@ -141,11 +146,14 @@ class BigInt<uint128_t> {
     BigInt& RMNTMulEq(const BigInt& rhs);
     static void MNT(CompMp* dest, uint64_t n, bool inv);
     BigInt& MNTMulEq(const BigInt& rhs);
+    // deprecated
     BigInt& MulEqKaratsuba(const BigInt& rhs);
     BigInt& operator*=(const BigInt& rhs);
     BigInt& SquareEq();
     BigInt& RMNTMulEqUB(const BigInt& rhs);
     BigInt& PlainMulEq(const BigInt& rhs);
+    static BigInt PlainMulBase(const BigInt& lhs, const BigInt& rhs);
+    static BigInt RMNTMulUBBase(const BigInt& lhs, const BigInt& rhs);
 
     // bigint64_ext.cpp
     bool isProbablePrime() const;
@@ -153,16 +161,32 @@ class BigInt<uint128_t> {
     friend BigInt PowMod(const BigInt& a, uint64_t p, const BigInt& n);
     friend BigInt PowMod(const BigInt& a, const BigInt& p, const BigInt& n);
 
-    // bigint64.cpp
+    // inline functions
     static BigInt RMNTMul(BigInt lhs, const BigInt& rhs);
     static BigInt MNTMul(BigInt lhs, const BigInt& rhs);
+    // deprecated
     static BigInt MulKaratsuba(BigInt lhs, const BigInt& rhs);
-    static BigInt PlainMul(BigInt lhs, const BigInt& rhs);
-    static BigInt DivD(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt PlainMul(const BigInt& lhs, const BigInt& rhs);
+    static BigInt PlainMul(const BigInt& lhs, BigInt&& rhs);
+    static BigInt PlainMul(BigInt&& lhs, const BigInt& rhs);
+    static BigInt PlainMul(BigInt&& lhs, BigInt&& rhs);
+    static BigInt RMNTMulUB(const BigInt& lhs, const BigInt& rhs);
+    static BigInt RMNTMulUB(const BigInt& lhs, BigInt&& rhs);
+    static BigInt RMNTMulUB(BigInt&& lhs, const BigInt& rhs);
+    static BigInt RMNTMulUB(BigInt&& lhs, BigInt&& rhs);
+    static BigInt DivD(const BigInt& lhs, const BigInt& rhs,
+                       BigInt* mod = nullptr);
+    static BigInt DivD(const BigInt& lhs, BigInt&& rhs, BigInt* mod = nullptr);
+    static BigInt DivD(BigInt&& lhs, const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt DivD(BigInt&& lhs, BigInt&& rhs, BigInt* mod = nullptr);
+    static BigInt DivR(const BigInt& lhs, const BigInt& rhs,
+                       BigInt* mod = nullptr);
+    static BigInt DivR(const BigInt& lhs, BigInt&& rhs, BigInt* mod = nullptr);
+    static BigInt DivR(BigInt&& lhs, const BigInt& rhs, BigInt* mod = nullptr);
+    static BigInt DivR(BigInt&& lhs, BigInt&& rhs, BigInt* mod = nullptr);
+    static BigInt Div64(BigInt lhs, int64_t rhs, int64_t* mod = nullptr);
     static BigInt Div(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
     static BigInt Square(BigInt lhs);
-    static BigInt RMNTMulUB(BigInt lhs, const BigInt& rhs);
-    static BigInt DivR(BigInt lhs, const BigInt& rhs, BigInt* mod = nullptr);
 };
 // bigint64_io.cpp
 std::ostream& operator<<(std::ostream& out, const BigInt<uint128_t>& rhs);
@@ -180,38 +204,324 @@ BigInt<uint128_t> GcdBin(BigInt<uint128_t> a, BigInt<uint128_t> b);
 BigInt<uint128_t> ExtGcdBin(BigInt<uint128_t> a, BigInt<uint128_t> b,
                             BigInt<uint128_t>* x, BigInt<uint128_t>* y);
 
-// bigint64.cpp
-BigInt<uint128_t> operator&(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator|(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator^(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator<<(BigInt<uint128_t> lhs, uint64_t rhs);
-BigInt<uint128_t> operator>>(BigInt<uint128_t> lhs, uint64_t rhs);
-BigInt<uint128_t> operator+(BigInt<uint128_t> lhs, uint64_t rhs);
-BigInt<uint128_t> operator+(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator-(BigInt<uint128_t> lhs, uint64_t rhs);
-BigInt<uint128_t> operator-(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator*(BigInt<uint128_t> lhs, uint64_t rhs);
-BigInt<uint128_t> operator*(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-BigInt<uint128_t> operator/(BigInt<uint128_t> lhs, int64_t rhs);
-BigInt<uint128_t> operator/(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
-int64_t operator%(BigInt<uint128_t> lhs, int64_t rhs);
-BigInt<uint128_t> operator%(BigInt<uint128_t> lhs,
-                            const BigInt<uint128_t>& rhs);
+// inline functions
+// basic
+inline BigInt<uint128_t>::~BigInt() { delete[] val_; }
+inline const uint128_t* BigInt<uint128_t>::Data() const { return val_; }
+inline uint64_t BigInt<uint128_t>::Length() const { return len_; }
+inline bool BigInt<uint128_t>::Sign() const {
+    return *(end_ - 1) >> (LIMB - 1);
+}
+inline bool BigInt<uint128_t>::Parity() const { return *val_ & 1; }
+inline double BigInt<uint128_t>::log10() const {
+    return log2() / std::log2(10.0);
+}
+
+// bit
+inline BigInt<uint128_t>& BigInt<uint128_t>::ToBitInv() {
+    uint128_t* it = val_;
+    do
+        *it = ~*it;
+    while (++it != end_);
+    return *this;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::operator~() const {
+    auto obj = *this;
+    return obj.ToBitInv();
+}
+inline BigInt<uint128_t> operator&(const BigInt<uint128_t>& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    auto tmp = lhs;
+    tmp &= rhs;
+    return tmp;
+}
+inline BigInt<uint128_t> operator&(BigInt<uint128_t>&& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs &= rhs;
+    return std::move(lhs);
+}
+inline BigInt<uint128_t> operator&(const BigInt<uint128_t>& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(rhs) & lhs;
+}
+inline BigInt<uint128_t> operator&(BigInt<uint128_t>&& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(lhs) & rhs;
+}
+inline BigInt<uint128_t> operator|(const BigInt<uint128_t>& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    auto tmp = lhs;
+    tmp |= rhs;
+    return tmp;
+}
+inline BigInt<uint128_t> operator|(BigInt<uint128_t>&& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs |= rhs;
+    return std::move(lhs);
+}
+inline BigInt<uint128_t> operator|(const BigInt<uint128_t>& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(rhs) | lhs;
+}
+inline BigInt<uint128_t> operator|(BigInt<uint128_t>&& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(lhs) | rhs;
+}
+inline BigInt<uint128_t> operator^(const BigInt<uint128_t>& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    auto tmp = lhs;
+    tmp ^= rhs;
+    return tmp;
+}
+inline BigInt<uint128_t> operator^(BigInt<uint128_t>&& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs ^= rhs;
+    return std::move(lhs);
+}
+inline BigInt<uint128_t> operator^(const BigInt<uint128_t>& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(rhs) ^ lhs;
+}
+inline BigInt<uint128_t> operator^(BigInt<uint128_t>&& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(lhs) ^ rhs;
+}
+inline BigInt<uint128_t> operator<<(BigInt<uint128_t> lhs, uint64_t rhs) {
+    lhs <<= rhs;
+    return lhs;
+}
+inline BigInt<uint128_t> operator>>(BigInt<uint128_t> lhs, uint64_t rhs) {
+    lhs >>= rhs;
+    return lhs;
+}
+
+// cmp
 #ifndef __cpp_impl_three_way_comparison
-bool operator<(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
-bool operator>(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
-bool operator<=(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
-bool operator>=(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
-bool operator==(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
-bool operator!=(const BigInt<uint128_t>& lhs, const BigInt<uint128_t>& rhs);
+inline bool operator<(const BigInt<uint128_t>& lhs,
+                      const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) < 0;
+}
+inline bool operator>(const BigInt<uint128_t>& lhs,
+                      const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) > 0;
+}
+inline bool operator<=(const BigInt<uint128_t>& lhs,
+                       const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) <= 0;
+}
+inline bool operator>=(const BigInt<uint128_t>& lhs,
+                       const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) >= 0;
+}
+inline bool operator==(const BigInt<uint128_t>& lhs,
+                       const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) == 0;
+}
+inline bool operator!=(const BigInt<uint128_t>& lhs,
+                       const BigInt<uint128_t>& rhs) {
+    return lhs.Compare(rhs) != 0;
+}
 #endif
+
+// add
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator++() { return *this += 1; }
+inline BigInt<uint128_t> BigInt<uint128_t>::operator++(int) {
+    auto obj = *this;
+    *this += 1;
+    return obj;
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator--() { return *this -= 1; }
+inline BigInt<uint128_t> BigInt<uint128_t>::operator--(int) {
+    auto obj = *this;
+    *this -= 1;
+    return obj;
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::ToOpposite() {
+    ToBitInv();
+    return *this += 1;
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::ToAbsolute() {
+    if (Sign())
+        return ToOpposite();
+    else
+        return *this;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::operator-() const {
+    auto obj = *this;
+    return obj.ToOpposite();
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator+=(const BigInt& rhs) {
+    return BiasedAddEq(rhs, 0, false);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator-=(const BigInt& rhs) {
+    return BiasedSubEq(rhs, 0, false);
+}
+inline BigInt<uint128_t> operator+(BigInt<uint128_t> lhs, uint64_t rhs) {
+    lhs += rhs;
+    return lhs;
+}
+inline BigInt<uint128_t> operator-(BigInt<uint128_t> lhs, uint64_t rhs) {
+    lhs -= rhs;
+    return lhs;
+}
+inline BigInt<uint128_t> operator+(const BigInt<uint128_t>& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    auto tmp = lhs;
+    tmp += rhs;
+    return tmp;
+}
+inline BigInt<uint128_t> operator+(BigInt<uint128_t>&& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs += rhs;
+    return std::move(lhs);
+}
+inline BigInt<uint128_t> operator+(const BigInt<uint128_t>& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(rhs) + lhs;
+}
+inline BigInt<uint128_t> operator+(BigInt<uint128_t>&& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(lhs) + rhs;
+}
+// substract is not swappable
+inline BigInt<uint128_t> operator-(BigInt<uint128_t> lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs -= rhs;
+    return lhs;
+}
+
+// mul
+inline BigInt<uint128_t> BigInt<uint128_t>::MNTMul(BigInt lhs,
+                                                   const BigInt& rhs) {
+    lhs.MNTMulEq(rhs);
+    return lhs;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::RMNTMul(BigInt lhs,
+                                                    const BigInt& rhs) {
+    lhs.RMNTMulEq(rhs);
+    return lhs;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::MulKaratsuba(BigInt lhs,
+                                                         const BigInt& rhs) {
+    lhs.MulEqKaratsuba(rhs);
+    return lhs;
+}
+inline BigInt<uint128_t> operator*(BigInt<uint128_t> lhs, uint64_t rhs) {
+    lhs *= rhs;
+    return lhs;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::PlainMul(const BigInt& lhs,
+                                                     BigInt&& rhs) {
+    return PlainMul(std::move(rhs), lhs);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::PlainMulEq(const BigInt& rhs) {
+    return *this = PlainMul(std::move(*this), rhs);
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::RMNTMulUB(const BigInt& lhs,
+                                                      BigInt&& rhs) {
+    return RMNTMulUB(std::move(rhs), lhs);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::RMNTMulEqUB(const BigInt& rhs) {
+    return *this = RMNTMulUB(std::move(*this), rhs);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator*=(const BigInt& rhs) {
+    if (rhs.len_ <= 16 || len_ <= 16) {
+        return PlainMulEq(rhs);
+    } else if ((len_ << 2) < rhs.len_ || (rhs.len_ << 2) < len_) {
+        return RMNTMulEqUB(rhs);
+    } else {
+        return RMNTMulEq(rhs);
+    }
+}
+inline BigInt<uint128_t> operator*(const BigInt<uint128_t>& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    if (rhs.Length() <= 16 || lhs.Length() <= 16) {
+        return rhs.PlainMul(lhs, rhs);
+    } else if ((lhs.Length() << 2) < rhs.Length() ||
+               (rhs.Length() << 2) < lhs.Length()) {
+        return rhs.RMNTMulUB(lhs, rhs);
+    } else {
+        return rhs.RMNTMul(lhs, rhs);
+    }
+}
+inline BigInt<uint128_t> operator*(BigInt<uint128_t>&& lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    if (rhs.Length() <= 16 || lhs.Length() <= 16) {
+        return rhs.PlainMul(std::move(lhs), rhs);
+    } else if ((lhs.Length() << 2) < rhs.Length() ||
+               (rhs.Length() << 2) < lhs.Length()) {
+        return rhs.RMNTMulUB(std::move(lhs), rhs);
+    } else {
+        return rhs.RMNTMul(std::move(lhs), rhs);
+    }
+}
+inline BigInt<uint128_t> operator*(const BigInt<uint128_t>& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    return std::move(rhs) * lhs;
+}
+inline BigInt<uint128_t> operator*(BigInt<uint128_t>&& lhs,
+                                   BigInt<uint128_t>&& rhs) {
+    if (rhs.Length() <= 16 || lhs.Length() <= 16) {
+        return rhs.PlainMul(std::move(lhs), std::move(rhs));
+    } else if ((lhs.Length() << 2) < rhs.Length() ||
+               (rhs.Length() << 2) < lhs.Length()) {
+        return rhs.RMNTMulUB(std::move(lhs), std::move(rhs));
+    } else {
+        return rhs.RMNTMul(std::move(lhs), std::move(rhs));
+    }
+}
+
+// div
+inline BigInt<uint128_t>& BigInt<uint128_t>::DivEqD(const BigInt& rhs,
+                                                    BigInt* mod) {
+    return *this = DivD(std::move(*this), rhs, mod);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::DivEqR(const BigInt& rhs,
+                                                    BigInt* mod) {
+    return *this = DivR(std::move(*this), rhs, mod);
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::Div64(BigInt lhs, int64_t rhs,
+                                                  int64_t* mod) {
+    lhs.DivEq64(rhs, mod);
+    return lhs;
+}
+inline int64_t operator%(BigInt<uint128_t> lhs, int64_t rhs) {
+    int64_t rv;
+    lhs.DivEq64(rhs, &rv);
+    return rv;
+}
+inline BigInt<uint128_t> operator%(BigInt<uint128_t> lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    lhs %= rhs;
+    return lhs;
+}
+
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator/=(int64_t rhs) {
+    return DivEq64(rhs, nullptr);
+}
+inline BigInt<uint128_t> operator/(BigInt<uint128_t> lhs, int64_t rhs) {
+    lhs.DivEq64(rhs, nullptr);
+    return lhs;
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::Div(BigInt lhs, const BigInt& rhs,
+                                                BigInt* mod) {
+    return lhs.DivEq(rhs, mod);
+}
+inline BigInt<uint128_t> operator/(BigInt<uint128_t> lhs,
+                                   const BigInt<uint128_t>& rhs) {
+    return lhs.DivEq(rhs, nullptr);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator/=(const BigInt& rhs) {
+    return DivEq(rhs, nullptr);
+}
+inline BigInt<uint128_t>& BigInt<uint128_t>::operator%=(const BigInt& rhs) {
+    BigInt<uint128_t> rv;
+    DivEq(rhs, &rv);
+    return *this = std::move(rv);
+}
+inline BigInt<uint128_t> BigInt<uint128_t>::Square(BigInt lhs) {
+    return lhs.SquareEq();
+}
 inline BigInt<uint128_t>& BigInt<uint128_t>::RandomBits(uint64_t bitlen) {
     auto q = (bitlen + 127) >> 7, r = bitlen & 127;
     return GenRandom(q, r ? r : 128);
