@@ -2,6 +2,7 @@
 #define RSA_HPP
 #include "bin2text.hpp"
 #include "bytes_mpint.hpp"
+#include "emsapss.hpp"
 #include "hash.hpp"
 #include "mgf.hpp"
 #include "oaep.hpp"
@@ -66,18 +67,19 @@ class RSAPrvKey final : public PKCPrivate {
     explicit RSAPrvKey(SecureHashFunc* hash = nullptr,
                        MaskGenFunc* mgf = nullptr)
         : PKCPrivate(id_unknown, 0), hash_(hash), mgf_(mgf) {}
-    inline void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
-    inline void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
+    void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
+    void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
     void SetScheme(RSAScheme scheme);
     BytesT Decrypt(const ByteT* cipher, LenT len) override;
     BytesT Sign(const ByteT* msg, LenT len) override;
     void PrintInfo() const;
     BI DecryptPrimitive(const BI& cipher) const;
     BI DecryptPrimitiveCRT(const BI& cipher) const;
-    inline BI SignaturePrimitive(const BI& msg) const;
+    BI SignaturePrimitive(const BI& msg) const;
     BytesT OAEPDecrypt(const ByteT* code, LenT code_len,
-                       const ByteT* label = nullptr, LenT label_len = 0);
+                       const ByteT* label = nullptr, LenT label_len = 0) const;
     BytesT PKCS1Decrypt(const ByteT* code, LenT code_len) const;
+    BytesT PSSSign(const ByteT* msg, LenT msg_len, LenT slen = 20) const;
     friend class RSA;
     friend class RSAPubKey;
 };
@@ -91,8 +93,8 @@ class RSAPubKey final : public PKCPublic {
     explicit RSAPubKey(SecureHashFunc* hash = nullptr,
                        MaskGenFunc* mgf = nullptr)
         : PKCPublic(id_unknown, 0), hash_(hash), mgf_(mgf) {}
-    inline void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
-    inline void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
+    void SetHashFunc(SecureHashFunc* hash) { hash_ = hash; }
+    void SetMaskGenFunc(MaskGenFunc* mgf) { mgf_ = mgf; }
     // construct public key from private key
     explicit RSAPubKey(const RSAPrvKey& prv)
         : PKCPublic(prv.oid_, prv.keylen_),
@@ -103,16 +105,19 @@ class RSAPubKey final : public PKCPublic {
           mgf_(prv.mgf_) {}
     RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt);
     BytesT Encrypt(const ByteT* msg, LenT len) override;
-    BytesT Verify(const ByteT* sign, LenT len) override;
+    int Verify(const ByteT* msg, LenT msg_len, const ByteT* sign,
+               LenT sign_len) override;
     void SetScheme(RSAScheme scheme);
     void PrintInfo() const;
-    inline void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text) const;
+    void PrintKey(enum RSAPubKeyFmt fmt, const Bin2Text& bin2text) const;
     BytesT Serialize(enum RSAPubKeyFmt fmt) const;
     BI EncryptPrimitive(const BI& msg) const;
-    inline BI VerificationPrimitive(const BI& sign) const;
+    BI VerificationPrimitive(const BI& sign) const;
     BytesT OAEPEncrypt(const ByteT* msg, LenT msg_len,
-                       const ByteT* label = nullptr, LenT label_len = 0);
+                       const ByteT* label = nullptr, LenT label_len = 0) const;
     BytesT PKCS1Encrypt(const ByteT* msg, LenT msg_len) const;
+    int PSSVerify(const ByteT* msg, LenT msg_len, const ByteT* sign,
+                  LenT sign_len, LenT slen = 20) const;
     friend class RSA;
 };
 class RSA {
@@ -126,6 +131,17 @@ class RSA {
 inline BI RSAPrvKey::SignaturePrimitive(const BI& msg) const {
     return DecryptPrimitiveCRT(msg);
 }
+inline BytesT RSAPrvKey::Decrypt(const ByteT* cipher, LenT len) {
+    if (scheme_ == kRSAEncryption)
+        return PKCS1Decrypt(cipher, len);
+    else if (scheme_ == kRSAES_OAEP)
+        return OAEPDecrypt(cipher, len);
+    else
+        return PKCS1Decrypt(cipher, len);
+}
+inline BytesT RSAPrvKey::Sign(const ByteT* msg, LenT len) {
+    return PSSSign(msg, len);
+}
 
 inline void RSAPubKey::PrintKey(enum RSAPubKeyFmt fmt,
                                 const Bin2Text& bin2text) const {
@@ -133,6 +149,18 @@ inline void RSAPubKey::PrintKey(enum RSAPubKeyFmt fmt,
 }
 inline BI RSAPubKey::VerificationPrimitive(const BI& sign) const {
     return EncryptPrimitive(sign);
+}
+inline BytesT RSAPubKey::Encrypt(const ByteT* msg, LenT len) {
+    if (scheme_ == kRSAEncryption)
+        return PKCS1Encrypt(msg, len);
+    else if (scheme_ == kRSAES_OAEP)
+        return OAEPEncrypt(msg, len);
+    else
+        return PKCS1Encrypt(msg, len);
+}
+inline int RSAPubKey::Verify(const ByteT* msg, LenT msg_len, const ByteT* sign,
+                             LenT sign_len) {
+    return PSSVerify(msg, msg_len, sign, sign_len);
 }
 
 inline bool RSA::KeyMatch(const RSAPubKey& pub_key, const RSAPrvKey& prv_key) {

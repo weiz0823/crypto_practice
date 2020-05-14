@@ -2,7 +2,7 @@
 namespace cryp {
 int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
                     LenT label_len, ByteT* dst, LenT dst_len) {
-    if (!hash_ || !mgf_) {
+    if (!hash_ || !mgf_ || !rnd_) {
         std::fputs(
             "Error(EMEOAEP::Encode): object parameters not properly set.\n",
             stderr);
@@ -12,7 +12,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
         label = nullptr;
         label_len = 0;
     }
-    auto hlen = hash_->HashLen() >> 3;
+    auto hlen = (hash_->HashLen() + 7) >> 3;
     if (msg_len + 2 * hlen + 2 > dst_len) {
         std::fputs("Error(EMEOAEP::Encode): message too long.\n", stderr);
         return 2;
@@ -25,8 +25,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
     db[pos - 1] = 1;
     std::copy(msg, msg + msg_len, db + pos);
     dst[0] = 0;
-    std::uniform_int_distribution<uint8_t> rnd;
-    for (LenT i = 1; i <= hlen; ++i) dst[i] = rnd(g_rnd_engine32);
+    for (LenT i = 1; i <= hlen; ++i) dst[i] = rnd_->Generate(0, 255);
     auto mask = new ByteT[dst_len];
     pos = dst_len - hlen - 1;
     mgf_->Generate(dst + 1, hlen, mask, pos);
@@ -38,7 +37,7 @@ int EMEOAEP::Encode(const ByteT* msg, LenT msg_len, const ByteT* label,
 }
 int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
                     LenT label_len, BytesT* dst) {
-    if (!hash_ || !mgf_) {
+    if (!hash_ || !mgf_ || !rnd_) {
         std::fputs(
             "Error(EMEOAEP::Decode): object parameters not properly set.\n",
             stderr);
@@ -48,7 +47,7 @@ int EMEOAEP::Decode(const ByteT* encoded, LenT src_len, const ByteT* label,
         label = nullptr;
         label_len = 0;
     }
-    auto hlen = hash_->HashLen() >> 3;
+    auto hlen = (hash_->HashLen() + 7) >> 3;
     int rv = 0;  // bit mask return value
     if (src_len < 2 * hlen + 2) {
         std::fputs("Error(EMEOAEP::Decode): encoded text too short.\n", stderr);

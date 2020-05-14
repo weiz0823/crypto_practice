@@ -44,4 +44,5 @@ class MD5 final : public SecureHashFunc {
     uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
     uint64_t HashFinal(uint8_t* dst) override;
 };
+inline MD5 g_md5;
 }  // namespace cryp

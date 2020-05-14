@@ -48,21 +48,13 @@ BI RSAPrvKey::DecryptPrimitiveCRT(const BI& cipher) const {
     if (tmp.Sign()) tmp += p_;
     return std::move(tmp) * q_ + std::move(m2);
 }
-BytesT RSAPrvKey::Decrypt(const ByteT* cipher, LenT len) {
-    // reserved
-    return BytesT();
-}
-BytesT RSAPrvKey::Sign(const ByteT* msg, LenT len) {
-    // reserved
-    return BytesT();
-}
 BytesT RSAPrvKey::OAEPDecrypt(const ByteT* code, LenT code_len,
-                              const ByteT* label, LenT label_len) {
+                              const ByteT* label, LenT label_len) const {
     if (label_len == 0 || label == nullptr) {
         label = nullptr;
         label_len = 0;
     }
-    LenT k = keylen_ >> 3;
+    LenT k = (keylen_ + 7) >> 3;
     if (code_len != k) {
         std::fputs(
             "Security warning(RSAES-OAEP): ciphertext length incorrect.\n",
@@ -79,7 +71,7 @@ BytesT RSAPrvKey::OAEPDecrypt(const ByteT* code, LenT code_len,
     return msg;
 }
 BytesT RSAPrvKey::PKCS1Decrypt(const ByteT* code, LenT code_len) const {
-    LenT k = keylen_ >> 3;
+    LenT k = (keylen_ + 7) >> 3;
     if (code_len != k) {
         std::fputs(
             "Security warning(RSAES-PKCS1-v1_5): ciphertext length "
@@ -95,6 +87,26 @@ BytesT RSAPrvKey::PKCS1Decrypt(const ByteT* code, LenT code_len) const {
         std::fputs("Warning(RSAES-PKCS1-v1_5): decrypt error.\n", stderr);
     }
     return msg;
+}
+BytesT RSAPrvKey::PSSSign(const ByteT* msg, LenT msg_len, LenT slen) const {
+    LenT em_len = (keylen_ + 6) >> 3;
+    auto em = new ByteT[em_len];
+    EMSAPSS emsa_pss(hash_, mgf_, slen);
+    if (emsa_pss.Encode(msg, msg_len, em, em_len)) {
+        std::fputs("Error(RSASSA-PSS): encoding error.\n", stderr);
+        delete[] em;
+        return BytesT();
+    }
+    LenT mov = keylen_ & 7;
+    // mov=(1-keylen)%8
+    mov = (9 - mov) & 7;
+    em[0] <<= mov;
+    em[0] >>= mov;
+    BI m = OS2IP(em, em + em_len);
+    m = SignaturePrimitive(m);
+    LenT k = (keylen_ + 7) >> 3;
+    delete[] em;
+    return I2OSP(m, k);
 }
 
 RSAPubKey::RSAPubKey(const ByteT* data, enum RSAPubKeyFmt fmt)
@@ -154,22 +166,14 @@ BI RSAPubKey::EncryptPrimitive(const BI& msg) const {
     }
     return calc::PowMod(msg, e_, n_);
 }
-BytesT RSAPubKey::Encrypt(const ByteT* msg, LenT len) {
-    // reserved
-    return BytesT();
-}
-BytesT RSAPubKey::Verify(const ByteT* sign, LenT len) {
-    // reserved
-    return BytesT();
-}
 BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len,
-                              const ByteT* label, LenT label_len) {
+                              const ByteT* label, LenT label_len) const {
     if (label_len == 0 || label == nullptr) {
         label = nullptr;
         label_len = 0;
     }
     EMEOAEP eme_oaep(hash_, mgf_);
-    LenT k = keylen_ >> 3;
+    LenT k = (keylen_ + 7) >> 3;
     auto em = new ByteT[k];
     if (eme_oaep.Encode(msg, msg_len, label, label_len, em, k)) {
         std::fputs("Error(RSAES-OAEP): encrypt error.\n", stderr);
@@ -178,13 +182,12 @@ BytesT RSAPubKey::OAEPEncrypt(const ByteT* msg, LenT msg_len,
     }
     BI m = OS2IP(em, em + k);
     m = EncryptPrimitive(m);
-    BytesT v = I2OSP(m, k);
     delete[] em;
-    return v;
+    return I2OSP(m, k);
 }
 BytesT RSAPubKey::PKCS1Encrypt(const ByteT* msg, LenT msg_len) const {
     EMEPKCS1 eme_pkcs1;
-    LenT k = keylen_ >> 3;
+    LenT k = (keylen_ + 7) >> 3;
     auto em = new ByteT[k];
     if (eme_pkcs1.Encode(msg, msg_len, em, k)) {
         std::fputs("Error(RSAES-PKCS1-v1_5): encrypt error.\n", stderr);
@@ -193,9 +196,36 @@ BytesT RSAPubKey::PKCS1Encrypt(const ByteT* msg, LenT msg_len) const {
     }
     BI m = OS2IP(em, em + k);
     m = EncryptPrimitive(m);
-    BytesT v = I2OSP(m, k);
     delete[] em;
-    return v;
+    return I2OSP(m, k);
+}
+int RSAPubKey::PSSVerify(const ByteT* msg, LenT msg_len, const ByteT* sign,
+                         LenT sign_len, LenT slen) const {
+    int rv = 0;
+    LenT k = (keylen_ + 7) >> 3;
+    if (sign_len != k) {
+        std::fputs(
+            "Security warning(RSASSA-PSS): signature length incorrect.\n",
+            stderr);
+        rv |= 1;
+    }
+    BI m = OS2IP(sign, sign + sign_len);
+    m = VerificationPrimitive(m);
+    LenT em_len = (keylen_ + 6) >> 3;
+    BytesT em = I2OSP(m, em_len);
+    LenT mov = (keylen_ - 1) & 7;
+    if (mov && (em[0] >> mov)) {
+        std::fputs("Security warning(RSASSA-PSS): leading bits not zero.\n",
+                   stderr);
+        rv |= 2;
+    }
+    EMSAPSS emsa_pss(hash_, mgf_, slen);
+    int tmp = emsa_pss.Verify(msg, msg_len, em.data(), em_len);
+    if (tmp >= 0)
+        rv |= tmp << 2;
+    else
+        rv = -rv + tmp * 4;
+    return rv;
 }
 
 // must assign private key, may assign public key

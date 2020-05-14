@@ -126,4 +126,10 @@ class SHA512t final : public SHA2_64 {
    public:
     explicit SHA512t(uint64_t t);
 };
+inline SHA224 g_sha224;
+inline SHA256 g_sha256;
+inline SHA384 g_sha384;
+inline SHA512 g_sha512;
+inline SHA512t g_sha512_224(224);
+inline SHA512t g_sha512_256(256);
 }  // namespace cryp

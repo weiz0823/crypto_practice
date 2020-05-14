@@ -52,7 +52,8 @@ endif
 CXXFLAGS=-std=c++17
 TARGETS=
 RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart print_oid
-LIB_TARGETS=array_stream.a hash.a mgf.a bin2text.a randomart.a
+LIB_TARGETS=array_stream.a hash.a mgf.a bin2text.a randomart.a pubkeycrypto.a \
+			pubkey_encode.a
 DEBUG_TARGETS=rsa_test rsa_keygen_test
 BENCHMARK_TARGETS=
 
@@ -159,22 +160,34 @@ compile/serialize.o: src/serialize.cpp src/serialize.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # data encoding for public key cryptography
-compile/oaep.o: src/oaep.cpp src/oaep.hpp
+compile/oaep.o: src/oaep.cpp src/oaep.hpp \
+	src/pubkey_msg_encode.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-compile/pkcs1_encode.o: src/pkcs1_encode.cpp src/pkcs1_encode.hpp
+compile/pkcs1_encode.o: src/pkcs1_encode.cpp src/pkcs1_encode.hpp \
+	src/pubkey_msg_encode.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+compile/emsapss.o: src/emsapss.cpp src/emsapss.hpp \
+	src/pubkey_sign_encode.hpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+pubkey_encode.a: compile/oaep.o compile/pkcs1_encode.o compile/emsapss.o
+	ar rcs $@ $?
 
 # public key cryptography
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+pubkeycrypto.a: compile/rsa.o
+	ar rcs $@ $?
 
 # tests
 compile/rsa_test.o: tests/rsa_test.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 rsa_test: compile/rsa.o src/bigint64.a compile/hexprint.o compile/serialize.o \
-	compile/rsa_test.o compile/oaep.o compile/pkcs1_encode.o \
+	compile/rsa_test.o compile/oaep.o compile/pkcs1_encode.o compile/emsapss.o \
 	compile/sha1.o compile/mgf1.o compile/array_stream.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
@@ -188,7 +201,7 @@ rsa_keygen_test: compile/rsa.o src/bigint64.a compile/rsa_keygen_test.o \
 compile/print_oid.o: tests/print_oid.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-print_oid: compile/print_oid.o compile/hexprint.o
+print_oid: compile/print_oid.o compile/hexprint.o hash.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # wildcard match

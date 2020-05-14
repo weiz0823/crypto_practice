@@ -76,4 +76,10 @@ using SHAKE128 = SHA3Var<128, 0x1f>;
 using SHAKE256 = SHA3Var<256, 0x1f>;
 using RawSHAKE128 = SHA3Var<128, 0x07>;
 using RawSHAKE256 = SHA3Var<256, 0x07>;
+inline SHA3_224 g_sha3_224;
+inline SHA3_256 g_sha3_256;
+inline SHA3_384 g_sha3_384;
+inline SHA3_512 g_sha3_512;
+inline SHAKE128 g_shake128(256);
+inline SHAKE256 g_shake256(512);
 }  // namespace cryp

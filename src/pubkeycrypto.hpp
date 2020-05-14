@@ -26,6 +26,7 @@ class PKCPublic {
         : oid_(std::move(alg_id)), keylen_(key_len) {}
     inline LenT KeyLen() const { return keylen_; }
     virtual BytesT Encrypt(const ByteT* msg, LenT len) = 0;
-    virtual BytesT Verify(const ByteT* sign, LenT len) = 0;
+    virtual int Verify(const ByteT* msg, LenT msg_len, const ByteT* sign,
+                       LenT sign_len) = 0;
 };
 }  // namespace cryp

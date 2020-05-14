@@ -22,4 +22,5 @@ class SHA1 final : public SecureHashFunc {
     uint64_t HashUpdate(const uint8_t* src, uint64_t bytelen) override;
     uint64_t HashFinal(uint8_t* dst) override;
 };
+inline SHA1 g_sha1;
 }  // namespace cryp

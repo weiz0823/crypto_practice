@@ -26,4 +26,5 @@ class Base64 : public Bin2Text {
     std::string Encode(const ByteT* data, LenT len) const override;
     BytesT Decode(const char* str, LenT len) const override;
 };
+inline Base64 g_base64;
 }  // namespace cryp
