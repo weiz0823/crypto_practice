@@ -1,17 +1,18 @@
-#ifndef RSA_HPP
-#define RSA_HPP
+#pragma once
+#include "asn1.hpp"
 #include "bin2text.hpp"
 #include "bytes_mpint.hpp"
 #include "emsapss.hpp"
 #include "hash.hpp"
 #include "mgf.hpp"
+#include "mgf1.hpp"
 #include "oaep.hpp"
-#include "oid.hpp"
 #include "pkcs1_encode.hpp"
 #include "pubkeycrypto.hpp"
 #include "serialize.hpp"
 
 namespace cryp {
+using OID = ASN1::OID;
 using BI = calc::BigInt<calc::uint128_t>;
 
 enum RSAPubKeyFmt { kPKCS, kSSH, kRFC3279, kPEM };
@@ -29,8 +30,6 @@ enum RSAScheme {
     kRSASSA_PSS,
 };
 
-inline const OID id_pkcs_1("pkcs-1", "1.2.840.113549.1.1",
-                           "/ISO/Member-Body/US/RSADSI/PKCS/PKCS-1");
 inline const OID id_rsa_encryption("rsaEncryption", id_pkcs_1, "1",
                                    "RSAEncryption");
 inline const OID id_rsaes_oaep("id-RSAES-OAEP", id_pkcs_1, "7", "RSAES-OAEP");
@@ -167,5 +166,3 @@ inline bool RSA::KeyMatch(const RSAPubKey& pub_key, const RSAPrvKey& prv_key) {
     return pub_key.n_ == prv_key.n_ && pub_key.e_ == prv_key.e_;
 }
 }  // namespace cryp
-
-#endif /* RSA_HPP */

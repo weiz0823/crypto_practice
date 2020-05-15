@@ -11,6 +11,10 @@ inline const OID id_shake128_len("id-shake128-len", id_nist_hash, "17",
                                  "SHAKE128-len");
 inline const OID id_shake256_len("id-shake256-len", id_nist_hash, "18",
                                  "SHAKE256-len");
+inline const ASN1_HashAlgorithm asn1_sha3_224(&id_sha3_224);
+inline const ASN1_HashAlgorithm asn1_sha3_256(&id_sha3_256);
+inline const ASN1_HashAlgorithm asn1_sha3_384(&id_sha3_384);
+inline const ASN1_HashAlgorithm asn1_sha3_512(&id_sha3_512);
 // Secure Hash Function SHA-3
 // Standard: FIPS 202: SHA-3
 template <uint32_t CAP, uint8_t PAD>

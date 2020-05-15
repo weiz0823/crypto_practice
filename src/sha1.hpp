@@ -3,6 +3,7 @@
 
 namespace cryp {
 inline const OID id_sha1("id-sha1", id_secsig_alg, "26", "SHA1");
+inline const ASN1_HashAlgorithm asn1_sha1(&id_sha1);
 // Secure Hash Function SHA-1
 // Standard: FIPS 180: Secure Hash Standard (SHS)
 class SHA1 final : public SecureHashFunc {

@@ -1,7 +1,8 @@
 #pragma once
-#include "oid.hpp"
+#include "asn1.hpp"
 #include "type_aliases.hpp"
 namespace cryp {
+using OID = ASN1::OID;
 // Standards: FIPS 186: Digital Signature Standard (DSS)
 // public key cryptography abstract class
 class PKCPrivate {

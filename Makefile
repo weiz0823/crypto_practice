@@ -53,7 +53,7 @@ CXXFLAGS=-std=c++17
 TARGETS=
 RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart print_oid
 LIB_TARGETS=array_stream.a hash.a mgf.a bin2text.a randomart.a pubkeycrypto.a \
-			pubkey_encode.a
+			pubkey_encode.a asn1.a
 DEBUG_TARGETS=rsa_test rsa_keygen_test
 BENCHMARK_TARGETS=
 
@@ -91,31 +91,31 @@ array_stream.a: compile/array_stream.o
 
 # hash functions
 compile/md5.o: src/md5.cpp src/md5.hpp \
-	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/oid.hpp
+	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/asn1.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-md5: compile/md5_app.o compile/md5.o compile/array_stream.o
+md5: compile/md5_app.o compile/md5.o compile/array_stream.o asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 compile/sha1.o: src/sha1.cpp src/sha1.hpp \
-	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/oid.hpp
+	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/asn1.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-sha1: compile/sha1_app.o compile/sha1.o compile/array_stream.o
+sha1: compile/sha1_app.o compile/sha1.o compile/array_stream.o asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 compile/sha2.o: src/sha2.cpp src/sha2.hpp \
-	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/oid.hpp
+	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/asn1.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-sha2: compile/sha2_app.o compile/sha2.o compile/array_stream.o
+sha2: compile/sha2_app.o compile/sha2.o compile/array_stream.o asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 compile/sha3.o: src/sha3.cpp src/sha3.hpp \
-	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/oid.hpp
+	src/hash.hpp src/array_stream.hpp src/bitrotate.hpp src/asn1.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-sha3: compile/sha3_app.o compile/sha3.o compile/array_stream.o
+sha3: compile/sha3_app.o compile/sha3.o compile/array_stream.o asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 hash.a: compile/md5.o compile/sha1.o compile/sha2.o compile/sha3.o \
@@ -182,6 +182,15 @@ compile/rsa.o: src/rsa.cpp src/rsa.hpp
 pubkeycrypto.a: compile/rsa.o
 	ar rcs $@ $?
 
+# asn1
+compile/asn1.o: src/asn1.cpp src/asn1.hpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+asn1.a: compile/asn1.o src/bigint64_basic.a
+	ar x src/bigint64_basic.a
+	mv bigint64_basic.o compile/
+	ar rcs $@ compile/asn1.o compile/bigint64_basic.o
+
 # tests
 compile/rsa_test.o: tests/rsa_test.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -201,7 +210,7 @@ rsa_keygen_test: compile/rsa.o src/bigint64.a compile/rsa_keygen_test.o \
 compile/print_oid.o: tests/print_oid.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-print_oid: compile/print_oid.o compile/hexprint.o hash.a
+print_oid: compile/print_oid.o compile/hexprint.o hash.a asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # wildcard match

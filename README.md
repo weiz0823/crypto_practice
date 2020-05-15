@@ -16,6 +16,7 @@ Features
 -   \[x\] Pack hash functions (now MD5, SHA-1, SHA-2, SHA-3) into static library. `make hash.a MODE=lib`. Completed on 2020-05-12.
 -   \[x\] Some other trivial static libraries. `make MODE=lib` to compile all. Completed on 2020-5-12.
 -   \[x\] RSA encryption & signature generation. `make rsa_test MODE=release` to get a demo. Completed on 2020-5-15.
+-   \[x\] ASN.1 encoding basic. `make asn1.a MODE=lib`. Completed on 2020-5-16.
 -   \[ \] 文本比对。cyl
 
 TODO
@@ -24,7 +25,7 @@ TODO
 -   \[x\] 库目标: 哈希函数
 -   \[x\] 库目标: 二进制数据可打印编码
 -   \[x\] RSA: RSASSA-PSS
--   \[ \] ASN.1: 详见[ASN.1讨论]。
+-   \[x\] ASN.1: 详见[ASN.1讨论]。（已经部分完成，可以按需添加）
 -   \[ \] 公钥算法: DSA（应该不难）
 -   \[ \] 公钥算法: ECDSA/EdDSA（可以先尝试学习）。
 -   \[ \] 伪随机数: mersenne twister（就是C++内置的mt19937，看上去不难）

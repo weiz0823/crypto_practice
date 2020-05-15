@@ -10,6 +10,12 @@ inline const OID id_sha512_224("id-sha512-224", id_nist_hash, "5",
                                "SHA512-224");
 inline const OID id_sha512_256("id-sha512-256", id_nist_hash, "6",
                                "SHA512-256");
+inline const ASN1_HashAlgorithm asn1_sha224(&id_sha224);
+inline const ASN1_HashAlgorithm asn1_sha256(&id_sha256);
+inline const ASN1_HashAlgorithm asn1_sha384(&id_sha384);
+inline const ASN1_HashAlgorithm asn1_sha512(&id_sha512);
+inline const ASN1_HashAlgorithm asn1_sha512_224(&id_sha512_224);
+inline const ASN1_HashAlgorithm asn1_sha512_256(&id_sha512_256);
 // SHA-2 Family
 // Standard: FIPS 180: Secure Hash Standard
 // 32-bit based on SHA256

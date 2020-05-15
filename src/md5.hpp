@@ -3,6 +3,7 @@
 
 namespace cryp {
 inline const OID id_md5("id-md5", id_digest, "5", "MD5");
+inline const ASN1_HashAlgorithm asn1_md5(&id_md5);
 // Standards: RFC 1321: MD5 Message-digest
 //            RFC 6151: Updated Security Considerations on MD5
 // Not anti-collision, but can check for unintentional data modification

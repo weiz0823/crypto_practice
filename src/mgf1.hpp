@@ -1,9 +1,9 @@
 #pragma once
 #include "hash.hpp"
 #include "mgf.hpp"
-#include "oid.hpp"
 #include "sha1.hpp"
 namespace cryp {
+using OID = ASN1::OID;
 inline const OID id_pkcs_1("pkcs-1", "1.2.840.113549.1.1",
                            "/ISO/Member-Body/US/RSADSI/PKCS/PKCS-1");
 inline const OID id_mgf1("id-mgf1", id_pkcs_1, "8", "MGF1");

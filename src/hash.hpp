@@ -3,9 +3,10 @@
 #include <iostream>
 
 #include "array_stream.hpp"
+#include "asn1.hpp"
 #include "bitrotate.hpp"
-#include "oid.hpp"
 namespace cryp {
+using OID = ASN1::OID;
 inline const OID id_digest("digestAlgorithm", "1.2.840.113549.2",
                            "/ISO/Member-Body/US/RSADSI/DigestAlgorithm");
 inline const OID id_nist_hash(
@@ -45,5 +46,18 @@ class SecureHashFunc {
     // hash length read-only
     inline uint64_t HashLen() const { return hlen_; }
     virtual ~SecureHashFunc() = default;
+};
+class ASN1_HashAlgorithm : public ASN1::Sequence {
+   protected:
+    const ASN1::OID* hash_id_;
+    BytesT code_;
+    // param: null, use global null object
+   public:
+    explicit ASN1_HashAlgorithm(const OID* hash_id) : hash_id_(hash_id) {
+        hash_id_->Encode(&code_);
+        g_asn1_null.Encode(&code_);
+        auto v = Wrap(code_);
+        code_.insert(code_.begin(), v.begin(), v.end());
+    }
 };
 }  // namespace cryp

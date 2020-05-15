@@ -8,9 +8,6 @@ int main() {
     std::puts("oid about hash functions:");
     std::cout << cryp::id_md5.GetName() << ": " << cryp::id_md5.GetID()
               << std::endl;
-    auto v = cryp::id_md5.DEREncode();
-    cryp::HexPrint hexprint;
-    std::cout << hexprint.Encode(v.data(), v.size()) << std::endl;
     std::cout << cryp::id_sha1.GetName() << ": " << cryp::id_sha1.GetID()
               << std::endl;
     std::cout << cryp::id_sha224.GetName() << ": " << cryp::id_sha224.GetID()

@@ -1,5 +1,6 @@
 #pragma once
 #include "type_aliases.hpp"
+#include "asn1.hpp"
 namespace cryp {
 // mask generation function abstract class
 class MaskGenFunc {

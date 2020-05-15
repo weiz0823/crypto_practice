@@ -31,10 +31,10 @@ class BigInt<uint128_t> {
 
     // random device
     // inline static std::random_device rand_dev_;
-    inline static auto rand_dev_ = std::random_device();
-    inline static auto rand_gen_ = static_cast<std::mt19937>(rand_dev_());
+    inline static std::random_device rand_dev_{};
+    inline static std::mt19937 rand_gen_{rand_dev_()};
+    inline static std::uniform_int_distribution<uint64_t> rand_{};
     // usage: rand_(rand_gen_)
-    inline static auto rand_ = std::uniform_int_distribution<uint64_t>();
     // inline static std::uniform_int_distribution<uint64_t> rand_;
 
     // bigint64_div.cpp
