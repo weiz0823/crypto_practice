@@ -59,5 +59,49 @@ class ASN1_HashAlgorithm : public ASN1::Sequence {
         auto v = Wrap(code_);
         code_.insert(code_.begin(), v.begin(), v.end());
     }
+    void Encode(BytesT* dst) const { *dst += code_; }
+    int Decode(ASN1::OID* oid, BytesT::const_iterator pos,
+               BytesT::const_iterator max_pos,
+               BytesT::const_iterator* end_pos = nullptr) const {
+        if (end_pos) *end_pos = pos;
+        if (pos + 1 > max_pos) return -1;
+        if (Unwrap(pos, max_pos, &pos, &max_pos)) return -1;
+        if (oid->Decode(pos, max_pos, &pos)) return -1;
+        if (g_asn1_null.Decode(pos, max_pos, &pos)) return -1;
+        if (pos != max_pos) return -1;
+        if (end_pos) *end_pos = pos;
+        return 0;
+    }
+};
+class ASN1_DigestInfo : public ASN1::Sequence {
+   protected:
+    const ASN1_HashAlgorithm* hash_alg_;
+    ASN1::OctetString digest_;
+    BytesT code_;
+
+   public:
+    explicit ASN1_DigestInfo(const ASN1_HashAlgorithm* hash_alg)
+        : hash_alg_(hash_alg) {}
+    void SetDigest(const ByteT* data, LenT len) {
+        digest_.Set(data, len);
+        code_.clear();
+        hash_alg_->Encode(&code_);
+        digest_.Encode(&code_);
+        auto v = Wrap(code_);
+        code_.insert(code_.begin(), v.begin(), v.end());
+    }
+    void Encode(BytesT* dst) const { *dst += code_; }
+    int Decode(ASN1::OID* oid, BytesT* digest, BytesT::const_iterator pos,
+               BytesT::const_iterator max_pos,
+               BytesT::const_iterator* end_pos = nullptr) const {
+        if (end_pos) *end_pos = pos;
+        if (pos + 1 > max_pos) return -1;
+        if (Unwrap(pos, max_pos, &pos, &max_pos)) return -1;
+        if (hash_alg_->Decode(oid, pos, max_pos, &pos)) return -1;
+        if (digest_.Decode(digest, pos, max_pos, &pos)) return -1;
+        if (pos != max_pos) return -1;
+        if (end_pos) *end_pos = pos;
+        return 0;
+    }
 };
 }  // namespace cryp

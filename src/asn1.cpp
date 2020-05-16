@@ -18,7 +18,7 @@ BytesT ASN1::EncodeIdentifier(int type) {
     return v;
 }
 int ASN1::DecodeIdentifier(int* dst, BytesT::const_iterator pos,
-                           const BytesT::const_iterator& max_pos,
+                           BytesT::const_iterator max_pos,
                            BytesT::const_iterator* end_pos) {
     if (pos >= max_pos) return -1;
     int value = *pos & 0x1f;
@@ -61,7 +61,7 @@ BytesT ASN1::EncodeLength(LenT len) {
 }
 // -1 for indefinite
 int ASN1::DecodeLength(LenT* dst, BytesT::const_iterator pos,
-                       const BytesT::const_iterator& max_pos,
+                       BytesT::const_iterator max_pos,
                        BytesT::const_iterator* end_pos) {
     if (pos >= max_pos) return -1;
     LenT value;
@@ -87,7 +87,7 @@ int ASN1::DecodeLength(LenT* dst, BytesT::const_iterator pos,
 }
 
 int ASN1::Boolean::DecodeImplicit(bool* value, BytesT::const_iterator pos,
-                                  const BytesT::const_iterator& max_pos,
+                                  BytesT::const_iterator max_pos,
                                   BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     if (pos + 2 > max_pos) return -1;
@@ -97,7 +97,7 @@ int ASN1::Boolean::DecodeImplicit(bool* value, BytesT::const_iterator pos,
     return 0;
 }
 int ASN1::Boolean::Decode(bool* value, BytesT::const_iterator pos,
-                          const BytesT::const_iterator& max_pos,
+                          BytesT::const_iterator max_pos,
                           BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     if (pos + 3 > max_pos) return -1;
@@ -109,7 +109,7 @@ int ASN1::Boolean::Decode(bool* value, BytesT::const_iterator pos,
 }
 
 int ASN1::Integer::DecodeImplicit(BI* value, BytesT::const_iterator pos,
-                                  const BytesT::const_iterator& max_pos,
+                                  BytesT::const_iterator max_pos,
                                   BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     LenT len;
@@ -120,7 +120,7 @@ int ASN1::Integer::DecodeImplicit(BI* value, BytesT::const_iterator pos,
     return 0;
 }
 int ASN1::Integer::Decode(BI* value, BytesT::const_iterator pos,
-                          const BytesT::const_iterator& max_pos,
+                          BytesT::const_iterator max_pos,
                           BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     if (pos + 2 > max_pos) return -1;
@@ -179,7 +179,7 @@ void ASN1::Integer::Push(uint64_t value) {
 }
 
 int ASN1::OctetString::DecodeImplicit(BytesT* value, BytesT::const_iterator pos,
-                                      const BytesT::const_iterator& max_pos,
+                                      BytesT::const_iterator max_pos,
                                       BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     LenT len;
@@ -191,7 +191,7 @@ int ASN1::OctetString::DecodeImplicit(BytesT* value, BytesT::const_iterator pos,
     return 0;
 }
 int ASN1::OctetString::Decode(BytesT* value, BytesT::const_iterator pos,
-                              const BytesT::const_iterator& max_pos,
+                              BytesT::const_iterator max_pos,
                               BytesT::const_iterator* end_pos) const {
     if (end_pos) *end_pos = pos;
     if (pos + 2 > max_pos) return -1;
@@ -256,7 +256,7 @@ void ASN1::OID::Push() {
     code_ += v;
 }
 int ASN1::OID::DecodeImplicit(BytesT::const_iterator pos,
-                              const BytesT::const_iterator& max_pos,
+                              BytesT::const_iterator max_pos,
                               BytesT::const_iterator* end_pos) {
     name_.clear();
     detail_.clear();
@@ -306,7 +306,7 @@ int ASN1::OID::DecodeImplicit(BytesT::const_iterator pos,
     return 0;
 }
 int ASN1::OID::Decode(BytesT::const_iterator pos,
-                      const BytesT::const_iterator& max_pos,
+                      BytesT::const_iterator max_pos,
                       BytesT::const_iterator* end_pos) {
     if (end_pos) *end_pos = pos;
     if (pos + 2 > max_pos) return -1;
@@ -327,7 +327,7 @@ BytesT ASN1::CustomWrapper<TAG>::Wrap(int num, const BytesT& content) const {
 }
 template <ASN1::ClassTag TAG>
 int ASN1::CustomWrapper<TAG>::Unwrap(int num, BytesT::const_iterator pos,
-                                     const BytesT::const_iterator& max_pos,
+                                     BytesT::const_iterator max_pos,
                                      BytesT::const_iterator* begin_pos,
                                      BytesT::const_iterator* end_pos) const {
     if (pos + 2 > max_pos) return -1;
@@ -352,7 +352,7 @@ BytesT ASN1::BasicWrapper<TYPE>::Wrap(const BytesT& content) const {
 }
 template <ASN1::IDConstructedType TYPE>
 int ASN1::BasicWrapper<TYPE>::Unwrap(BytesT::const_iterator pos,
-                                     const BytesT::const_iterator& max_pos,
+                                     BytesT::const_iterator max_pos,
                                      BytesT::const_iterator* begin_pos,
                                      BytesT::const_iterator* end_pos) const {
     if (pos + 2 > max_pos) return -1;

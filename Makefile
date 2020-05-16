@@ -54,7 +54,7 @@ TARGETS=
 RELEASE_TARGETS=base64 md5 sha1 sha2 sha3 randomart print_oid
 LIB_TARGETS=array_stream.a hash.a mgf.a bin2text.a randomart.a pubkeycrypto.a \
 			pubkey_encode.a asn1.a
-DEBUG_TARGETS=rsa_test rsa_keygen_test
+DEBUG_TARGETS=rsa_test rsa_keygen_test dsa_keygen_test dsa_test
 BENCHMARK_TARGETS=
 
 
@@ -119,7 +119,7 @@ sha3: compile/sha3_app.o compile/sha3.o compile/array_stream.o asn1.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 hash.a: compile/md5.o compile/sha1.o compile/sha2.o compile/sha3.o \
-	compile/array_stream.o
+	compile/array_stream.o compile/asn1.o
 	ar rcs $@ $?
 
 # mask generation functions
@@ -179,6 +179,9 @@ pubkey_encode.a: compile/oaep.o compile/pkcs1_encode.o compile/emsapss.o
 compile/rsa.o: src/rsa.cpp src/rsa.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+compile/dsa.o: src/dsa.cpp src/dsa.hpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 pubkeycrypto.a: compile/rsa.o
 	ar rcs $@ $?
 
@@ -211,6 +214,20 @@ compile/print_oid.o: tests/print_oid.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 print_oid: compile/print_oid.o compile/hexprint.o hash.a asn1.a
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+compile/dsa_test.o: tests/dsa_test.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+dsa_test: compile/dsa.o src/bigint64.a compile/dsa_test.o \
+	compile/base64.o hash.a
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+compile/dsa_keygen_test.o: tests/dsa_keygen_test.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+dsa_keygen_test: compile/dsa.o src/bigint64.a compile/dsa_keygen_test.o \
+	compile/base64.o hash.a
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # wildcard match

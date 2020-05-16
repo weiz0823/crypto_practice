@@ -232,8 +232,14 @@ int RSAPubKey::PSSVerify(const ByteT* msg, LenT msg_len, const ByteT* sign,
 void RSA::KeyGen(RSAPubKey* pub_key, RSAPrvKey* prv_key, int bit_len,
                  int verbose) {
     if (!prv_key) {
-        std::fprintf(stderr, "Error: prv_key is nullptr.\n");
+        std::fprintf(stderr, "Error(RSA Keygen): prv_key is nullptr.\n");
         return;
+    }
+    if (bit_len < 1024) {
+        std::fputs(
+            "Security warning(RSA Keygen): keylen shall be at least "
+            "1024bits.\n",
+            stderr);
     }
     if (verbose >= 2) std::printf("Start RSA-%d key generation...\n", bit_len);
     // half length, and 128 bits per limb
